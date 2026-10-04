@@ -1,0 +1,10 @@
+node_modules/
+.expo/
+dist/
+web-build/
+__pycache__/
+.venv/
+*.py[cod]
+.env
+.env.*
+!.env.example

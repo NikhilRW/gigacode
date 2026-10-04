@@ -1,0 +1,11 @@
+{
+  "name": "code-runner-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "web": "bun run --cwd apps/web start",
+    "web:web": "bun run --cwd apps/web web"
+  }
+}
