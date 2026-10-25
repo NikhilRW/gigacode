@@ -5,7 +5,19 @@
     "apps/*"
   ],
   "scripts": {
-    "web": "bun run --cwd apps/web start",
-    "web:web": "bun run --cwd apps/web web"
+    "start": "bun run --cwd apps/expo start",
+    "web": "bun run --cwd apps/expo web",
+    "web:web": "bun run --cwd apps/expo web",
+    "ios": "bun run --cwd apps/expo ios",
+    "android": "bun run --cwd apps/expo android",
+    "typecheck": "bun run --cwd apps/expo typecheck",
+    "lint": "bun run --cwd apps/expo lint",
+    "test": "bun test apps/expo/tests",
+    "build": "bun run --cwd apps/expo build",
+    "test:web": "node --experimental-strip-types scripts/review-web.mts",
+    "build:native": "bun run --cwd apps/expo build:native"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.1"
   }
 }

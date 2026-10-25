@@ -1,0 +1,81 @@
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+        
+        <style id="expo-dom-component-style">
+        /* These styles make the body full-height */
+        html,
+        body {
+          -webkit-overflow-scrolling: touch; /* Enables smooth momentum scrolling */
+        }
+        /* These styles make the root element full-height */
+        #root {
+          display: flex;
+          flex: 1;
+        }
+        </style>
+    </head>
+    <body>
+    <noscript>DOM Components require <code>javaScriptEnabled</code></noscript>
+        <!-- Root element for the DOM component. -->
+        <div id="root"></div>
+        <script>
+// Polyfill globalThis
+if (typeof globalThis === "undefined") {
+  var _g = typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : self;
+  _g.globalThis = _g;
+}
+// Polyfill Array.prototype.flat
+if (!Array.prototype.flat) {
+  Array.prototype.flat = function flat(depth) {
+    depth = depth === undefined ? 1 : Math.floor(Number(depth));
+    if (depth < 1) return Array.prototype.slice.call(this);
+    return Array.prototype.reduce.call(
+      this,
+      function (acc, val) {
+        if (Array.isArray(val)) {
+          acc.push.apply(acc, flat.call(val, depth - 1));
+        } else {
+          acc.push(val);
+        }
+        return acc;
+      },
+      []
+    );
+  };
+}
+// Polyfill performance.measure with measureOptions.
+// Legacy WebViews only support performance.measure(name, startMark, endMark) with
+// string mark names. When called with a measureOptions object (e.g., { start, end }),
+// we drop the options and call measure(name) to avoid throwing.
+try {
+  performance.measure("__expo_feature_test", { start: 0 });
+  performance.clearMeasures("__expo_feature_test");
+} catch (e) {
+  var _origMeasure = performance.measure.bind(performance);
+  performance.measure = function (name, startOrOptions, endMark) {
+    if (startOrOptions && typeof startOrOptions === "object") {
+      return _origMeasure(name);
+    }
+    return _origMeasure(name, startOrOptions, endMark);
+  };
+}
+</script>
+        <script>
+          var injectedObject = {};
+          try {
+            injectedObject = JSON.parse(window.ReactNativeWebView.injectedObjectJson());
+          } catch (e) {
+            throw new Error('Failed to parse injectedObjectJson: ' + e.message);
+          }
+          window.$$EXPO_DOM_HOST_OS = injectedObject.EXPO_DOM_HOST_OS;
+          window.$$EXPO_INITIAL_PROPS = injectedObject.initialProps;
+        </script>
+        
+    <script src="./1071ec0dc75771f4e7fa505c507da75b.js" defer></script>
+</body>
+</html>
