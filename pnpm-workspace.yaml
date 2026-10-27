@@ -1,0 +1,8 @@
+packages:
+  - apps/api
+  - apps/worker
+  - apps/web
+  - packages/*
+onlyBuiltDependencies:
+  - esbuild
+  - '@node-rs/argon2'

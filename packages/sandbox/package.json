@@ -1,0 +1,14 @@
+{
+  "name": "@engine/sandbox",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test:abuse": "vitest run --root . test/abuse"
+  },
+  "dependencies": {
+    "@engine/shared": "workspace:*"
+  }
+}

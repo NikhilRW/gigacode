@@ -9,3 +9,7 @@ __pycache__/
 .env.*
 !.env.example
 personal/
+coverage/
+playwright-report/
+test-results/
+.pnpm-store/
