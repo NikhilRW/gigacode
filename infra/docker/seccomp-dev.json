@@ -1,0 +1,23 @@
+{
+  "comment": "DEV ONLY profile for DockerDriver. Denylist on top of allow-by-default; nsjail's kafel policy is the real allowlist.",
+  "defaultAction": "SCMP_ACT_ALLOW",
+  "architectures": ["SCMP_ARCH_X86_64", "SCMP_ARCH_AARCH64"],
+  "syscalls": [
+    {
+      "names": [
+        "mount", "umount2", "pivot_root", "chroot", "ptrace", "unshare", "setns", "keyctl", "add_key",
+        "request_key", "bpf", "perf_event_open", "kexec_load", "kexec_file_load", "init_module", "finit_module",
+        "delete_module", "reboot", "swapon", "swapoff", "acct", "userfaultfd", "process_vm_readv",
+        "process_vm_writev", "open_by_handle_at", "name_to_handle_at", "open_tree", "move_mount", "fsopen",
+        "fsconfig", "fsmount", "fspick", "syslog"
+      ],
+      "action": "SCMP_ACT_KILL_PROCESS"
+    },
+    {
+      "names": ["io_uring_setup", "io_uring_enter", "io_uring_register", "clone3"],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 38
+    },
+    { "names": ["socket", "socketpair"], "action": "SCMP_ACT_ERRNO", "errnoRet": 1 }
+  ]
+}

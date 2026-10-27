@@ -1,0 +1,11 @@
+/* Node.js additions. */
+/* memfd_create: V8 code space on some builds. getsockname/getpeername: libuv probes the */
+/* type of stdio fds at startup. Both are harmless because socket() is denied in base. */
+POLICY lang_extra {
+  ALLOW {
+    SYSCALL[319],
+    getsockname,
+    getpeername,
+    getsockopt
+  }
+}

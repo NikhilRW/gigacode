@@ -1,0 +1,7 @@
+/* gcc/g++ additions: the driver spawns cc1/as/collect2/ld; covered by base fork/vfork/execve/wait4. */
+/* collect2 and ld use memfd-free temp files in /tmp, so nothing extra beyond base today. */
+POLICY lang_extra {
+  ALLOW {
+    vfork
+  }
+}

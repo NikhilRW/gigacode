@@ -24,6 +24,11 @@ export interface SandboxSpec {
   stdoutPath: string;
   stderrPath: string;
   limits: SandboxLimits;
+  /**
+   * Host uid/gid the sandbox user (65534 inside) maps to. Each worker slot uses its own id so
+   * concurrent runs never share a kernel uid (rlimits, signals, file ownership).
+   */
+  hostUid: number;
   /** Always false. Present so the contract is explicit. */
   network: false;
 }

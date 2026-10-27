@@ -1,0 +1,87 @@
+import { randomUUID } from 'node:crypto';
+import { hash, verify } from '@node-rs/argon2';
+import type { FastifyInstance } from 'fastify';
+import { loginSchema, registerSchema, type Me } from '@engine/shared';
+import { AuthRepo, toTenantLimits, withTx, type UserRow } from '@engine/db';
+import type { AppContext } from '../context.ts';
+import { ApiError, unauthorized } from '../errors.ts';
+import { clearSession, issueSession, requireAuth } from '../auth/session.ts';
+import { parseBody } from './util.ts';
+
+// algorithm 2 = Argon2id (const enum in @node-rs/argon2, not importable under isolatedModules)
+const ARGON = { algorithm: 2 as const, memoryCost: 19456, timeCost: 2, parallelism: 1 };
+// Verified against when the email is unknown, so response time does not reveal accounts.
+const DUMMY_HASH_PROMISE = hash('not-a-real-password-0000', ARGON);
+
+async function buildMe(ctx: AppContext, user: Pick<UserRow, 'id' | 'email' | 'role' | 'tenant_id'>, csrf: string): Promise<Me> {
+  const tenant = await new AuthRepo(ctx.pool).findTenant(user.tenant_id);
+  if (!tenant) throw unauthorized();
+  return {
+    user: { id: user.id, email: user.email, role: user.role },
+    tenant: { id: tenant.id, name: tenant.name },
+    limits: toTenantLimits(tenant),
+    csrfToken: csrf,
+  };
+}
+
+export async function authRoutes(app: FastifyInstance, ctx: AppContext) {
+  app.post('/v1/auth/register', async (req, reply) => {
+    const body = parseBody(registerSchema, req.body);
+    const repo = new AuthRepo(ctx.pool);
+    if (await repo.findUserByEmail(body.email)) throw new ApiError(409, 'email_taken', 'email already registered');
+    const passwordHash = await hash(body.password, ARGON);
+    const tenantId = randomUUID();
+    const userId = randomUUID();
+    try {
+      await withTx(ctx.pool, (client) =>
+        new AuthRepo(client).createTenantWithOwner({
+          tenantId,
+          tenantName: body.tenantName,
+          userId,
+          email: body.email,
+          passwordHash,
+        }),
+      );
+    } catch (err) {
+      if ((err as { code?: string }).code === '23505') throw new ApiError(409, 'email_taken', 'email already registered');
+      throw err;
+    }
+    const csrf = issueSession(ctx, reply, { id: userId, tenantId, role: 'owner' });
+    req.log.info({ tenantId, userId }, 'tenant registered');
+    reply.code(201);
+    return buildMe(ctx, { id: userId, email: body.email.toLowerCase(), role: 'owner', tenant_id: tenantId }, csrf);
+  });
+
+  app.post('/v1/auth/login', async (req, reply) => {
+    const body = parseBody(loginSchema, req.body);
+    const user = await new AuthRepo(ctx.pool).findUserByEmail(body.email);
+    const ok = user ? await verify(user.password_hash, body.password) : (await verify(await DUMMY_HASH_PROMISE, body.password), false);
+    if (!user || !ok) throw new ApiError(401, 'invalid_credentials', 'invalid email or password');
+    const csrf = issueSession(ctx, reply, { id: user.id, tenantId: user.tenant_id, role: user.role });
+    return buildMe(ctx, user, csrf);
+  });
+
+  app.post('/v1/auth/logout', async (req, reply) => {
+    if (req.auth) requireAuth(req);
+    clearSession(ctx, reply);
+    reply.code(204).send();
+  });
+
+  app.get('/v1/me', async (req) => {
+    const auth = requireAuth(req);
+    if (auth.userId) {
+      const user = await new AuthRepo(ctx.pool).findUserById(auth.userId);
+      if (!user || user.tenant_id !== auth.tenantId) throw unauthorized();
+      return buildMe(ctx, user, auth.csrf);
+    }
+    // API key caller: no user, report the tenant.
+    const tenant = await new AuthRepo(ctx.pool).findTenant(auth.tenantId);
+    if (!tenant) throw unauthorized();
+    return {
+      user: { id: auth.apiKeyId!, email: '', role: auth.role },
+      tenant: { id: tenant.id, name: tenant.name },
+      limits: toTenantLimits(tenant),
+      csrfToken: '',
+    } satisfies Me;
+  });
+}

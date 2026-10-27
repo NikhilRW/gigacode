@@ -33,7 +33,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports: ['6379:6379']
+    ports: ['6380:6379']  # host 6379 is taken by a native Redis on this dev machine
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 2s
@@ -97,7 +97,7 @@ services:
       SANDBOX_ROOTFS_DIR: /opt/sandbox/rootfs
       NSJAIL_BIN: /usr/local/bin/nsjail
     tmpfs:
-      - /var/lib/worker/runs:size=2g,mode=0700
+      - /var/lib/worker/runs:size=2g,mode=0711
     depends_on:
       api: { condition: service_healthy }
 

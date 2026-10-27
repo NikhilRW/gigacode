@@ -1,0 +1,28 @@
+[Unit]
+Description=Code execution worker agent
+After=network-online.target engine-worker-firewall.service
+Wants=network-online.target
+Requires=engine-worker-firewall.service
+
+[Service]
+Type=simple
+# Root is needed to create user namespaces with arbitrary uid maps, mount per-run tmpfs and
+# manage the delegated cgroup subtree. Sandboxed code never runs as this user (see SECURITY.md).
+User=root
+EnvironmentFile=/etc/engine-worker/env
+WorkingDirectory=/opt/engine
+ExecStartPre=/usr/bin/pnpm --filter @engine/worker selftest
+ExecStart=/usr/bin/pnpm --filter @engine/worker start
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=45
+# cgroup v2 delegation: the worker creates <service cgroup>/agent and <service cgroup>/runs/*
+Delegate=yes
+NoNewPrivileges=no
+ProtectHome=yes
+PrivateTmp=yes
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
