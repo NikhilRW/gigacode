@@ -1,4 +1,4 @@
-import { StrictMode } from 'react';
+import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
@@ -11,8 +11,11 @@ import { LoginPage, RegisterPage } from './pages/Auth.tsx';
 import { DashboardPage } from './pages/Dashboard.tsx';
 import { ExecutionDetailPage } from './pages/ExecutionDetail.tsx';
 import { ExecutionsPage } from './pages/Executions.tsx';
-import { NewExecutionPage } from './pages/NewExecution.tsx';
+import { Skeleton } from '@/components/ui/skeleton';
 import './index.css';
+
+// Monaco is large: the Playground (the only page with an editor) loads on demand.
+const NewExecutionPage = lazy(() => import('./pages/NewExecution.tsx').then((m) => ({ default: m.NewExecutionPage })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,7 +42,14 @@ createRoot(document.getElementById('root')!).render(
             }
           >
             <Route index element={<DashboardPage />} />
-            <Route path="new" element={<NewExecutionPage />} />
+            <Route
+              path="new"
+              element={
+                <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+                  <NewExecutionPage />
+                </Suspense>
+              }
+            />
             <Route path="executions" element={<ExecutionsPage />} />
             <Route path="executions/:id" element={<ExecutionDetailPage />} />
             <Route path="api-keys" element={<ApiKeysPage />} />

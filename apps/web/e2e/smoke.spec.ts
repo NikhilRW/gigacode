@@ -10,7 +10,7 @@ test('register, run Python, see live status and output', async ({ page }) => {
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 
-  await page.getByRole('link', { name: 'New execution' }).first().click();
+  await page.getByRole('link', { name: 'Playground' }).first().click();
   await expect(page.getByRole('heading', { name: 'New execution' })).toBeVisible();
 
   // Replace the starter program through Monaco's model.

@@ -1,76 +1,54 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { api } from '../api/endpoints.ts';
-import { useRequiredMe } from '../auth.tsx';
-import { applyTheme, currentTheme, type Theme } from '../lib/theme.ts';
-import { Button } from './ui.tsx';
+import { Outlet } from 'react-router-dom';
+import { Moon, Sun } from 'lucide-react';
+import { AppSidebar } from '@/components/AppSidebar';
+import { Button } from '@/components/ui/button';
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { Toaster } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { applyTheme, currentTheme, type Theme } from '@/lib/theme';
 
+/** Icon-only theme switch used on public screens (sign-in, register). */
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(currentTheme);
   const next = theme === 'dark' ? 'light' : 'dark';
   return (
     <Button
       variant="ghost"
+      size="icon"
       aria-label={`Switch to ${next} mode`}
       onClick={() => {
         applyTheme(next);
         setTheme(next);
       }}
     >
-      {theme === 'dark' ? '☀ Light' : '☾ Dark'}
+      {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
     </Button>
   );
 }
 
-const linkClass = ({ isActive }: { isActive: boolean }) =>
-  `rounded-md px-2.5 py-1.5 text-sm font-medium ${
-    isActive
-      ? 'bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-white'
-      : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-  }`;
-
 export function Layout() {
-  const me = useRequiredMe();
-  const qc = useQueryClient();
-  const navigate = useNavigate();
-
-  async function logout() {
-    try {
-      await api.logout();
-    } finally {
-      qc.clear();
-      navigate('/login');
-    }
-  }
-
   return (
-    <div className="min-h-screen">
-      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2 dark:focus:bg-slate-900">
-        Skip to content
-      </a>
-      <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-2 px-4 py-2">
-          <span className="mr-2 font-semibold">⧉ Exec Engine</span>
-          <nav aria-label="Main" className="flex flex-wrap gap-1">
-            <NavLink to="/" end className={linkClass}>Dashboard</NavLink>
-            <NavLink to="/new" className={linkClass}>New execution</NavLink>
-            <NavLink to="/executions" className={linkClass}>Executions</NavLink>
-            <NavLink to="/api-keys" className={linkClass}>API keys</NavLink>
-            {me.user.role === 'platform_admin' && <NavLink to="/admin" className={linkClass}>Admin</NavLink>}
-          </nav>
-          <div className="ml-auto flex items-center gap-2">
-            <span className="hidden text-xs text-slate-500 sm:inline">
-              {me.tenant.name} · {me.user.email}
-            </span>
-            <ThemeToggle />
-            <Button variant="secondary" onClick={logout}>Sign out</Button>
-          </div>
-        </div>
-      </header>
-      <main id="main" className="mx-auto max-w-7xl px-4 py-6">
-        <Outlet />
-      </main>
-    </div>
+    <TooltipProvider delayDuration={200}>
+      <SidebarProvider>
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-card focus:px-3 focus:py-2"
+        >
+          Skip to content
+        </a>
+        <AppSidebar />
+        <SidebarInset className="bg-background">
+          <header className="sticky top-0 z-10 flex h-12 items-center gap-2 border-b bg-background/90 px-4 backdrop-blur md:hidden">
+            <SidebarTrigger aria-label="Open navigation" />
+            <span className="text-sm font-semibold">GigaCode</span>
+          </header>
+          <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:px-8 md:py-10">
+            <Outlet />
+          </main>
+        </SidebarInset>
+        <Toaster richColors closeButton />
+      </SidebarProvider>
+    </TooltipProvider>
   );
 }

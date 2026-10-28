@@ -61,6 +61,7 @@ services:
       minio: { condition: service_started }
 
   api:
+    restart: unless-stopped
     build: { context: .., dockerfile: infra/docker/api.Dockerfile }
     environment:
       <<: *app-env
@@ -74,6 +75,7 @@ services:
       retries: 30
 
   worker:
+    restart: unless-stopped
     build: { context: .., dockerfile: infra/docker/worker.Dockerfile }
     # nsjail needs to create namespaces and manage a delegated cgroup v2 subtree.
     # On a real worker VM this runs as a systemd service instead (infra/worker-vm/).
@@ -102,6 +104,7 @@ services:
       api: { condition: service_healthy }
 
   web:
+    restart: unless-stopped
     build: { context: .., dockerfile: infra/docker/web.Dockerfile }
     ports: ['5173:80']
     depends_on:
