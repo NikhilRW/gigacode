@@ -52,6 +52,7 @@ services:
   migrate:
     build: { context: .., dockerfile: infra/docker/api.Dockerfile }
     # Applies SQL migrations, ensures the worker DB login, creates the S3 bucket and lifecycle rule.
+    working_dir: /app
     command: ['pnpm', 'exec', 'tsx', 'scripts/init-infra.ts']
     environment:
       <<: *app-env

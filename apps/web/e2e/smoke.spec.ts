@@ -4,11 +4,11 @@ test('register, run Python, see live status and output', async ({ page }) => {
   const suffix = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
   await page.goto('/register');
-  await page.getByLabel('Organization name').fill(`E2E ${suffix}`);
+  await page.getByLabel('Workspace name').fill(`E2E ${suffix}`);
   await page.getByLabel('Email').fill(`e2e-${suffix}@example.com`);
-  await page.getByLabel('Password').fill('e2e-password-123');
+  await page.getByLabel('Password', { exact: true }).fill('e2e-password-123');
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Run code, safely contained/ })).toBeVisible();
 
   await page.getByRole('link', { name: 'Playground' }).first().click();
   await expect(page.getByRole('heading', { name: 'New execution' })).toBeVisible();

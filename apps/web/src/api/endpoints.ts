@@ -10,9 +10,11 @@ import type {
   LanguageId,
   Limits,
   Me,
+  Onboarding,
   QueueStats,
   ResultFile,
   TenantLimitsPatch,
+  Timeseries,
   Usage,
   WorkerInfo,
 } from '@engine/shared';
@@ -37,6 +39,7 @@ export interface ListFilters {
   language?: LanguageId;
   from?: string;
   to?: string;
+  q?: string;
   cursor?: string;
   limit?: number;
 }
@@ -44,7 +47,7 @@ export interface ListFilters {
 export const api = {
   me: () => withCsrf(request<Me>('GET', '/v1/me')),
   login: (body: { email: string; password: string }) => withCsrf(request<Me>('POST', '/v1/auth/login', { body })),
-  register: (body: { tenantName: string; email: string; password: string }) =>
+  register: (body: { name?: string; tenantName: string; email: string; password: string }) =>
     withCsrf(request<Me>('POST', '/v1/auth/register', { body })),
   logout: async () => {
     await request<void>('POST', '/v1/auth/logout');
@@ -52,6 +55,11 @@ export const api = {
   },
 
   usage: () => request<Usage>('GET', '/v1/usage'),
+  timeseries: (hours = 24) => request<Timeseries>('GET', '/v1/usage/timeseries', { query: { hours } }),
+  onboarding: () => request<Onboarding>('GET', '/v1/onboarding'),
+  updateProfile: (body: { name: string }) => withCsrf(request<Me>('PATCH', '/v1/me', { body })),
+  changePassword: (body: { currentPassword: string; newPassword: string }) =>
+    request<void>('POST', '/v1/me/password', { body }),
 
   listExecutions: (f: ListFilters) =>
     request<ExecutionList>('GET', '/v1/executions', { query: { ...f } as Record<string, string | number | undefined> }),
