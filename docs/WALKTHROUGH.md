@@ -145,7 +145,9 @@ Sidebar → **API keys**.
 KEY=ce_live_...        # paste your key
 
 # submit
-curl -s -X POST http://localhost:3000/v1/executions   -H "authorization: Bearer $KEY" -H 'content-type: application/json'   -d '{"language":"python","files":[{"path":"main.py","content":"print(6*7)"}],"entryFile":"main.py"}'
+curl -s -X POST http://localhost:3000/v1/executions \
+  -H "authorization: Bearer $KEY" -H 'content-type: application/json' \
+  -d '{"language":"python","files":[{"path":"main.py","content":"print(6*7)"}],"entryFile":"main.py"}'
 # -> {"id":"<id>","status":"QUEUED"}
 
 # poll, then read the output
