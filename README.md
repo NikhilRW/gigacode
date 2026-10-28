@@ -77,8 +77,11 @@ docs/         architecture, security, failures, runbook, assumptions, milestones
 pnpm install
 npx vitest run --project unit                                  # state machine, validation, limits, hashing, mapping
 
-# integration (Postgres, Redis and MinIO from compose; compose Redis is on host port 6380)
+# integration (Postgres, Redis and MinIO from compose; compose Redis is on host port 6380).
+# The tests use a stub worker, so stop the real one first; they refuse to run otherwise.
+docker compose stop worker
 REDIS_URL=redis://localhost:6380 npx vitest run --project integration
+docker compose start worker
 
 # sandbox abuse suite (inside the Linux worker container)
 docker compose exec worker sh -c 'cd /app/packages/sandbox && npx vitest run test/abuse'

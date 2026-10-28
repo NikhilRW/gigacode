@@ -6,16 +6,17 @@ excluded from the pnpm workspace. Evidence for every ✅ is in [TEST_REPORT.md](
 
 | # | Milestone | Done when | Status |
 |---|---|---|---|
-| M0 | Scaffold | `docker compose up` starts all services, `/readyz` green | ✅ Verified (CI workflow written but not run) |
+| M0 | Scaffold | `docker compose up` starts all services, `/readyz` green | ✅ (CI workflow written, not yet run on GitHub) |
 | M1 | Shared + DB | Migrations clean; state machine/repository tests pass | ✅ |
 | M2 | API write + read paths | Integration tests for §8, §10, §11 pass with stub worker | ✅ 21/21 |
 | M3 | Sandbox + worker | Abuse suite passes on Linux; Python and C run end to end | ✅ 15/15 abuse; all 4 languages end to end |
-| M4 | Reliability | Failure/recovery suite passes | ❌ Code implemented and covered by API integration tests; chaos suite written but **not passing / not completed** (see TEST_REPORT) |
+| M4 | Reliability | Failure/recovery suite passes | ✅ chaos 7/7 in one run |
 | M5 | Web dashboard | Playwright smoke passes; live state via SSE | ✅ |
-| M6 | Admin, observability, ops | All §13 metrics exposed; runbook complete | ✅ Metrics verified; runbook written. Worker-VM scripts not run on a real VM |
-| M7 | Docs + polish | Clone → compose up → seed → run code in 5 minutes | 🟡 Docs, seed, and README quick start done, and the quick-start path worked in this session. Load test not run |
+| M6 | Admin, observability, ops | All §13 metrics exposed; runbook complete | ✅ (worker-VM scripts not run on a real VM) |
+| M7 | Docs + polish | Clone → compose up → seed → run code in 5 minutes | ✅ fresh clone to running code in 36 s with a warm cache; load test 60/60 |
 
-## Next (when resumed)
+## Remaining (outside the milestone checks)
 
-1. Start Docker, `docker compose up -d --build`, seed, then `bash scripts/chaos/run-all.sh kill_worker`, and debug why the fault isn't injected before the job finishes. Likely fix: use a longer job, or kill on `DISPATCHED`/`STARTING` instead of `RUNNING`. Then run the remaining scenarios one at a time.
-2. Run the load test and the CI workflow.
+1. Run the CI workflow on GitHub Actions.
+2. Provision one real worker VM with `infra/worker-vm/setup.sh` and run the self-test and abuse suite there.
+3. Time a cold-cache quick start on a clean machine.

@@ -37,6 +37,17 @@ export async function setup(): Promise<TestEnv> {
     COOKIE_SECURE: 'false',
   });
   const pool = createPool(DATABASE_URL);
+  // These tests drive the queue with a stub worker; a real worker on the same DB would steal jobs.
+  const live = await pool.query<{ id: string }>(
+    `SELECT id FROM workers WHERE status = 'active' AND last_heartbeat_at > now() - interval '15 seconds' AND id NOT LIKE 'stub-%'`,
+  );
+  if (live.rows.length > 0) {
+    await pool.end();
+    throw new Error(
+      `a real worker (${live.rows.map((r) => r.id).join(', ')}) is attached to this database; ` +
+        'stop it first (docker compose stop worker) before running integration tests',
+    );
+  }
   // Test files share one queue; hold a session advisory lock so they never interleave.
   const lockClient = await pool.connect();
   await lockClient.query('SELECT pg_advisory_lock(424242)');
