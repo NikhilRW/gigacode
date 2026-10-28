@@ -14,7 +14,7 @@ export class Hints {
 
   constructor(url: string, private readonly log: Logger) {
     const opts = { enableOfflineQueue: false, maxRetriesPerRequest: 1, connectTimeout: 2000, lazyConnect: false };
-    this.redis = new Redis(url, opts);
+    this.redis = new Redis(url, { ...opts, commandTimeout: 1000 });
     this.sub = new Redis(url, { ...opts, enableOfflineQueue: true });
     for (const c of [this.redis, this.sub]) c.on('error', () => {});
     this.sub.subscribe(redisKeys.queueWake).catch(() => {});

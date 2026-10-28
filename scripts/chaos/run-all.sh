@@ -177,6 +177,8 @@ api_crash() {
 }
 
 # ---- main ----------------------------------------------------------------------------------
+# Every helper silences compose output, so refuse to run with an invalid compose config.
+$DC config -q || { echo "invalid compose config for chaos overlay"; exit 1; }
 curl -sf "$B/readyz" >/dev/null || { echo "stack not ready at $B"; exit 1; }
 login
 SCENARIOS=("$@")

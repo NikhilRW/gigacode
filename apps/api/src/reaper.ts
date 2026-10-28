@@ -3,6 +3,8 @@ import { PlatformRepo, transitionExecution } from '@engine/db';
 import type { AppContext } from './context.ts';
 
 const LOCK_KEY = 727_001; // arbitrary, stable advisory lock id for the reaper
+/** A pass that overruns this is abandoned so a stuck call can never stop requeues for good. */
+const PASS_TIMEOUT_MS = 60_000;
 
 export interface ReaperPassStats {
   requeued: number;
@@ -135,7 +137,19 @@ export class Reaper {
       const lock = await client.query<{ ok: boolean }>('SELECT pg_try_advisory_lock($1) AS ok', [LOCK_KEY]);
       if (!lock.rows[0]?.ok) return null;
       try {
-        return await runReaperPass(this.ctx);
+        const started = Date.now();
+        let timer: NodeJS.Timeout | undefined;
+        const timeout = new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error(`reaper pass exceeded ${PASS_TIMEOUT_MS}ms`)), PASS_TIMEOUT_MS);
+        });
+        try {
+          const stats = await Promise.race([runReaperPass(this.ctx), timeout]);
+          const ms = Date.now() - started;
+          if (ms > 5000) this.ctx.logger.warn({ ms, ...stats }, 'slow reaper pass');
+          return stats;
+        } finally {
+          clearTimeout(timer);
+        }
       } finally {
         await client.query('SELECT pg_advisory_unlock($1)', [LOCK_KEY]);
       }

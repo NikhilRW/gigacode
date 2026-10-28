@@ -2,7 +2,7 @@
 # Used by scripts/chaos/run-all.sh. Never deploy this.
 services:
   worker-chaos:
-    extends: { service: worker }
+    extends: { file: docker-compose.yml, service: worker }
     environment:
       CHAOS_DROP_HEARTBEATS: 'true'
       LEASE_SECONDS: '4'

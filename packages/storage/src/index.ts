@@ -42,6 +42,8 @@ export class Storage {
       region: config.region,
       forcePathStyle: config.forcePathStyle,
       maxAttempts: 1,
+      // Without these the SDK waits on a stalled socket indefinitely, which can wedge callers like the reaper.
+      requestHandler: { connectionTimeout: 3000, requestTimeout: 15_000 },
       credentials:
         config.accessKeyId && config.secretAccessKey
           ? { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey }
