@@ -1,4 +1,13 @@
-import type { Execution, ExecutionAttempt, ExecutionEvent, Limits, ListExecutionsQuery, Usage } from '@engine/shared';
+import type {
+  Execution,
+  ExecutionAttempt,
+  ExecutionEvent,
+  Limits,
+  ListExecutionsQuery,
+  Onboarding,
+  Timeseries,
+  Usage,
+} from '@engine/shared';
 import type { Queryable } from '../pool.ts';
 import { toAttempt, toEvent, toExecution, type ExecutionRow } from '../rows.ts';
 
@@ -93,6 +102,7 @@ export class ExecutionRepo {
     if (q.language) add('language = ?', q.language);
     if (q.from) add('created_at >= ?', q.from);
     if (q.to) add('created_at <= ?', q.to);
+    if (q.q) add("id::text LIKE ? || '%'", q.q);
     if (q.cursor) {
       const c = decodeCursor(q.cursor);
       if (c) {
@@ -157,6 +167,40 @@ export class ExecutionRepo {
       [id, this.tenantId],
     );
     return (res.rowCount ?? 0) > 0;
+  }
+
+  /** Setup checklist state for the Overview page, derived from existing rows. */
+  async onboarding(): Promise<Onboarding> {
+    const res = await this.db.query<{ ran: boolean; made: boolean; used: boolean }>(
+      `SELECT
+         EXISTS (SELECT 1 FROM executions WHERE tenant_id = $1) AS ran,
+         EXISTS (SELECT 1 FROM api_keys WHERE tenant_id = $1) AS made,
+         EXISTS (SELECT 1 FROM executions WHERE tenant_id = $1 AND api_key_id IS NOT NULL) AS used`,
+      [this.tenantId],
+    );
+    const r = res.rows[0]!;
+    return { ranExecution: r.ran, createdApiKey: r.made, usedApiKey: r.used };
+  }
+
+  /** Runs submitted per hour for the last `hours` hours (including empty hours), by outcome. */
+  async timeseries(hours: number): Promise<Timeseries> {
+    const res = await this.db.query<{ at: Date } & Record<'success' | 'failed' | 'timeout' | 'cancelled' | 'other', number>>(
+      `SELECT h.at,
+         count(e.id) FILTER (WHERE e.status = 'SUCCESS')::int AS success,
+         count(e.id) FILTER (WHERE e.status IN ('FAILED', 'DEAD_LETTERED'))::int AS failed,
+         count(e.id) FILTER (WHERE e.status = 'TIMEOUT')::int AS timeout,
+         count(e.id) FILTER (WHERE e.status = 'CANCELLED')::int AS cancelled,
+         count(e.id) FILTER (WHERE e.status NOT IN ('SUCCESS', 'FAILED', 'DEAD_LETTERED', 'TIMEOUT', 'CANCELLED'))::int AS other
+       FROM generate_series(
+              date_trunc('hour', now()) - make_interval(hours => $2::int - 1),
+              date_trunc('hour', now()),
+              interval '1 hour') AS h(at)
+       LEFT JOIN executions e
+         ON e.tenant_id = $1 AND e.created_at >= h.at AND e.created_at < h.at + interval '1 hour'
+       GROUP BY h.at ORDER BY h.at`,
+      [this.tenantId, hours],
+    );
+    return { hours, points: res.rows.map((r) => ({ ...r, at: r.at.toISOString() })) };
   }
 
   async usage(): Promise<Omit<Usage, 'limits'>> {

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { hash, verify } from '@node-rs/argon2';
 import type { FastifyInstance } from 'fastify';
-import { loginSchema, registerSchema, type Me } from '@engine/shared';
+import { changePasswordSchema, loginSchema, registerSchema, updateProfileSchema, type Me } from '@engine/shared';
 import { AuthRepo, toTenantLimits, withTx, type UserRow } from '@engine/db';
 import type { AppContext } from '../context.ts';
 import { ApiError, unauthorized } from '../errors.ts';
@@ -13,11 +13,11 @@ const ARGON = { algorithm: 2 as const, memoryCost: 19456, timeCost: 2, paralleli
 // Verified against when the email is unknown, so response time does not reveal accounts.
 const DUMMY_HASH_PROMISE = hash('not-a-real-password-0000', ARGON);
 
-async function buildMe(ctx: AppContext, user: Pick<UserRow, 'id' | 'email' | 'role' | 'tenant_id'>, csrf: string): Promise<Me> {
+async function buildMe(ctx: AppContext, user: Pick<UserRow, 'id' | 'email' | 'name' | 'role' | 'tenant_id'>, csrf: string): Promise<Me> {
   const tenant = await new AuthRepo(ctx.pool).findTenant(user.tenant_id);
   if (!tenant) throw unauthorized();
   return {
-    user: { id: user.id, email: user.email, role: user.role },
+    user: { id: user.id, email: user.email, name: user.name, role: user.role },
     tenant: { id: tenant.id, name: tenant.name },
     limits: toTenantLimits(tenant),
     csrfToken: csrf,
@@ -39,6 +39,7 @@ export async function authRoutes(app: FastifyInstance, ctx: AppContext) {
           tenantName: body.tenantName,
           userId,
           email: body.email,
+          name: body.name,
           passwordHash,
         }),
       );
@@ -49,7 +50,7 @@ export async function authRoutes(app: FastifyInstance, ctx: AppContext) {
     const csrf = issueSession(ctx, reply, { id: userId, tenantId, role: 'owner' });
     req.log.info({ tenantId, userId }, 'tenant registered');
     reply.code(201);
-    return buildMe(ctx, { id: userId, email: body.email.toLowerCase(), role: 'owner', tenant_id: tenantId }, csrf);
+    return buildMe(ctx, { id: userId, email: body.email.toLowerCase(), name: body.name ?? null, role: 'owner', tenant_id: tenantId }, csrf);
   });
 
   app.post('/v1/auth/login', async (req, reply) => {
@@ -78,10 +79,40 @@ export async function authRoutes(app: FastifyInstance, ctx: AppContext) {
     const tenant = await new AuthRepo(ctx.pool).findTenant(auth.tenantId);
     if (!tenant) throw unauthorized();
     return {
-      user: { id: auth.apiKeyId!, email: '', role: auth.role },
+      user: { id: auth.apiKeyId!, email: '', name: null, role: auth.role },
       tenant: { id: tenant.id, name: tenant.name },
       limits: toTenantLimits(tenant),
       csrfToken: '',
     } satisfies Me;
+  });
+
+  /** Profile and password changes need a dashboard session; API keys have no user. */
+  function sessionUserId(req: Parameters<typeof requireAuth>[0]): { userId: string; tenantId: string; csrf: string } {
+    const auth = requireAuth(req);
+    if (!auth.userId) throw new ApiError(403, 'session_required', 'this action requires a signed-in dashboard session');
+    return { userId: auth.userId, tenantId: auth.tenantId, csrf: auth.csrf };
+  }
+
+  app.patch('/v1/me', async (req) => {
+    const { userId, tenantId, csrf } = sessionUserId(req);
+    const body = parseBody(updateProfileSchema, req.body);
+    const repo = new AuthRepo(ctx.pool);
+    await repo.updateName(userId, body.name);
+    const user = await repo.findUserById(userId);
+    if (!user || user.tenant_id !== tenantId) throw unauthorized();
+    return buildMe(ctx, user, csrf);
+  });
+
+  app.post('/v1/me/password', async (req, reply) => {
+    const { userId, tenantId } = sessionUserId(req);
+    const body = parseBody(changePasswordSchema, req.body);
+    const repo = new AuthRepo(ctx.pool);
+    const user = await repo.findUserById(userId);
+    if (!user || user.tenant_id !== tenantId) throw unauthorized();
+    if (!(await verify(user.password_hash, body.currentPassword)))
+      throw new ApiError(400, 'wrong_password', 'current password is incorrect');
+    await repo.updatePasswordHash(userId, await hash(body.newPassword, ARGON));
+    req.log.info({ tenantId, userId }, 'password changed');
+    reply.code(204).send();
   });
 }

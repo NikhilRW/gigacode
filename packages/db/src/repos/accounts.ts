@@ -7,6 +7,7 @@ export interface UserRow {
   id: string;
   tenant_id: string;
   email: string;
+  name: string | null;
   password_hash: string;
   role: Role;
 }
@@ -27,14 +28,15 @@ export class AuthRepo {
     tenantName: string;
     userId: string;
     email: string;
+    name?: string;
     passwordHash: string;
     role?: Role;
   }): Promise<void> {
     await this.db.query('INSERT INTO tenants (id, name) VALUES ($1, $2)', [args.tenantId, args.tenantName]);
     await this.db.query('INSERT INTO tenant_concurrency (tenant_id) VALUES ($1)', [args.tenantId]);
     await this.db.query(
-      'INSERT INTO users (id, tenant_id, email, password_hash, role) VALUES ($1, $2, $3, $4, $5)',
-      [args.userId, args.tenantId, args.email.toLowerCase(), args.passwordHash, args.role ?? 'owner'],
+      'INSERT INTO users (id, tenant_id, email, name, password_hash, role) VALUES ($1, $2, $3, $4, $5, $6)',
+      [args.userId, args.tenantId, args.email.toLowerCase(), args.name ?? null, args.passwordHash, args.role ?? 'owner'],
     );
   }
 
@@ -47,6 +49,14 @@ export class AuthRepo {
     if (!isUuid(id)) return null;
     const res = await this.db.query<UserRow>('SELECT * FROM users WHERE id = $1', [id]);
     return res.rows[0] ?? null;
+  }
+
+  async updateName(userId: string, name: string): Promise<void> {
+    await this.db.query('UPDATE users SET name = $2 WHERE id = $1', [userId, name]);
+  }
+
+  async updatePasswordHash(userId: string, passwordHash: string): Promise<void> {
+    await this.db.query('UPDATE users SET password_hash = $2 WHERE id = $1', [userId, passwordHash]);
   }
 
   async findTenant(id: string): Promise<TenantRow | null> {

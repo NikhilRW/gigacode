@@ -5,6 +5,7 @@ import {
   isActive,
   isTerminal,
   listExecutionsQuerySchema,
+  timeseriesQuerySchema,
   redisKeys,
   s3Keys,
   type ExecutionDetail,
@@ -244,6 +245,18 @@ export async function executionRoutes(app: FastifyInstance, ctx: AppContext) {
     }
     req.raw.on('close', close);
     send(fromRow(row));
+  });
+
+  /** Setup checklist state for the Overview page. */
+  app.get('/v1/onboarding', async (req) => {
+    const auth = requireAuth(req);
+    return repo(auth, true).onboarding();
+  });
+
+  app.get('/v1/usage/timeseries', async (req) => {
+    const auth = requireAuth(req);
+    const q = parseBody(timeseriesQuerySchema, req.query);
+    return repo(auth, true).timeseries(q.hours);
   });
 
   app.get('/v1/usage', async (req) => {

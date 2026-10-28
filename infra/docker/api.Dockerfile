@@ -16,4 +16,6 @@ COPY scripts scripts
 USER node
 ENV NODE_ENV=production
 EXPOSE 3000
-CMD ["pnpm", "--filter", "@engine/api", "start"]
+# Node runs as PID 1 (no pnpm/tsx wrapper) so SIGTERM reaches the shutdown handler.
+WORKDIR /app/apps/api
+CMD ["node", "--import", "tsx", "src/main.ts"]

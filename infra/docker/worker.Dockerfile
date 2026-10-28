@@ -57,4 +57,6 @@ COPY vitest.workspace.ts ./
 
 ENV SANDBOX_SECCOMP_DIR=/app/infra/nsjail/seccomp
 RUN mkdir -p /var/lib/worker/runs && chmod 0711 /var/lib/worker/runs
-CMD ["pnpm", "--filter", "@engine/worker", "start"]
+# Node runs as PID 1 (no pnpm/tsx wrapper) so SIGTERM reaches the drain handler.
+WORKDIR /app/apps/worker
+CMD ["node", "--import", "tsx", "src/main.ts"]

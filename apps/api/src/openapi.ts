@@ -18,6 +18,10 @@ import {
   resultFileSchema,
   tenantLimitsPatchSchema,
   usageSchema,
+  onboardingSchema,
+  timeseriesSchema,
+  updateProfileSchema,
+  changePasswordSchema,
   workerInfoSchema,
 } from '@engine/shared';
 
@@ -38,6 +42,10 @@ const components: Record<string, ZodTypeAny> = {
   ApiKey: apiKeySchema,
   CreatedApiKey: createdApiKeySchema,
   Usage: usageSchema,
+  Onboarding: onboardingSchema,
+  Timeseries: timeseriesSchema,
+  UpdateProfile: updateProfileSchema,
+  ChangePassword: changePasswordSchema,
   WorkerInfo: workerInfoSchema,
   QueueStats: queueStatsSchema,
   AdminTenant: adminTenantSchema,
@@ -77,7 +85,11 @@ export function buildOpenApi() {
       '/v1/auth/register': { post: op({ summary: 'Create tenant and owner', body: 'Register', response: 'Me', status: 201 }) },
       '/v1/auth/login': { post: op({ summary: 'Log in', body: 'Login', response: 'Me' }) },
       '/v1/auth/logout': { post: op({ summary: 'Log out', status: 204 }) },
-      '/v1/me': { get: op({ summary: 'Current user and tenant', response: 'Me' }) },
+      '/v1/me': {
+        get: op({ summary: 'Current user and tenant', response: 'Me' }),
+        patch: op({ summary: 'Update profile name (session only)', body: 'UpdateProfile', response: 'Me' }),
+      },
+      '/v1/me/password': { post: op({ summary: 'Change password (session only)', body: 'ChangePassword', status: 204 }) },
       '/v1/api-keys': {
         get: op({ summary: 'List API keys' }),
         post: op({ summary: 'Create API key (returned once)', body: 'CreateApiKey', response: 'CreatedApiKey', status: 201 }),
@@ -94,6 +106,8 @@ export function buildOpenApi() {
       '/v1/executions/{id}/events': { get: op({ summary: 'Server-Sent Events status stream (session cookie only)' }) },
       '/v1/executions/{id}/cancel': { post: op({ summary: 'Cancel execution', response: 'Execution' }) },
       '/v1/usage': { get: op({ summary: 'Tenant usage and limits', response: 'Usage' }) },
+      '/v1/usage/timeseries': { get: op({ summary: 'Runs per hour by outcome (?hours=1..168)', response: 'Timeseries' }) },
+      '/v1/onboarding': { get: op({ summary: 'Setup checklist state', response: 'Onboarding' }) },
       '/v1/admin/workers': { get: op({ summary: 'Workers (platform_admin)' }) },
       '/v1/admin/queue': { get: op({ summary: 'Queue stats (platform_admin)', response: 'QueueStats' }) },
       '/v1/admin/dlq': { get: op({ summary: 'Dead-lettered executions (platform_admin)' }) },

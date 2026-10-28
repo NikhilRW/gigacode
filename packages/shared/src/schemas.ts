@@ -110,6 +110,13 @@ export const listExecutionsQuerySchema = z.object({
   language: languageSchema.optional(),
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
+  /** Run ID prefix (hex and dashes only), for the Runs search box. */
+  q: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[0-9a-f-]{1,36}$/, 'q must be a run ID or its first characters')
+    .optional(),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),
 });
@@ -119,6 +126,7 @@ export const executionListSchema = z.object({ items: z.array(executionSchema), n
 export type ExecutionList = z.infer<typeof executionListSchema>;
 
 export const registerSchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
   tenantName: z.string().min(2).max(80),
   email: z.string().email().max(200),
   password: z.string().min(10).max(200),
@@ -138,12 +146,41 @@ export const tenantLimitsSchema = z.object({
 export type TenantLimits = z.infer<typeof tenantLimitsSchema>;
 
 export const meSchema = z.object({
-  user: z.object({ id: z.string(), email: z.string(), role: roleSchema }),
+  user: z.object({ id: z.string(), email: z.string(), name: z.string().nullable(), role: roleSchema }),
   tenant: z.object({ id: z.string(), name: z.string() }),
   limits: tenantLimitsSchema,
   csrfToken: z.string(),
 });
 export type Me = z.infer<typeof meSchema>;
+
+export const updateProfileSchema = z.object({ name: z.string().trim().min(1).max(80) }).strict();
+export const changePasswordSchema = z
+  .object({ currentPassword: z.string().min(1).max(200), newPassword: z.string().min(10).max(200) })
+  .strict();
+
+/** Setup checklist state, derived from existing rows (no separate table). */
+export const onboardingSchema = z.object({
+  ranExecution: z.boolean(),
+  createdApiKey: z.boolean(),
+  usedApiKey: z.boolean(),
+});
+export type Onboarding = z.infer<typeof onboardingSchema>;
+
+export const timeseriesQuerySchema = z.object({ hours: z.coerce.number().int().min(1).max(168).default(24) });
+export const timeseriesSchema = z.object({
+  hours: z.number(),
+  points: z.array(
+    z.object({
+      at: z.string(),
+      success: z.number(),
+      failed: z.number(),
+      timeout: z.number(),
+      cancelled: z.number(),
+      other: z.number(),
+    }),
+  ),
+});
+export type Timeseries = z.infer<typeof timeseriesSchema>;
 
 export const createApiKeySchema = z.object({ name: z.string().min(1).max(80) });
 export const apiKeySchema = z.object({
