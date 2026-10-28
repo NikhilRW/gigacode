@@ -93,7 +93,8 @@ export function describeError(err: unknown): string {
     if (err.status === 0) return err.message;
     if (err.status === 429)
       return `Rate limited: ${err.message}${err.retryAfterSeconds ? ` Retry in ${err.retryAfterSeconds}s.` : ''}`;
-    if (err.status === 401) return 'Your session has expired. Please sign in again.';
+    // A bad password at sign-in is not an expired session; show the server's own wording for that.
+    if (err.status === 401 && err.code !== 'invalid_credentials') return 'Your session has expired. Please sign in again.';
     if (err.status >= 500)
       return `Server error (${err.code}). Please try again.${err.requestId ? ` Request id: ${err.requestId}` : ''}`;
     return err.message;

@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Check, Copy, Info, XCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { AlertTriangle, Info, XCircle } from 'lucide-react';
 import type { ExecutionDetail } from '@engine/shared';
 import { isTerminal } from '@shared/states.ts';
 import { api } from '@/api/endpoints';
+import { CopyButton } from '@/components/CopyButton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatBytes, formatMs } from '@/lib/format';
@@ -48,30 +47,6 @@ export function OutcomeNotice({ e }: { e: ExecutionDetail }) {
         </AlertDescription>
       </div>
     </Alert>
-  );
-}
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      className="h-7 gap-1.5 px-2 text-xs"
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(text);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        } catch {
-          toast.error('Could not copy. Select the text and copy it manually.');
-        }
-      }}
-    >
-      {copied ? <Check className="size-3.5" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}
-      {copied ? 'Copied' : 'Copy'}
-    </Button>
   );
 }
 

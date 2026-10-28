@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Eye, EyeOff, Loader2, ShieldCheck, Terminal, Timer, Zap } from 'lucide-react';
+import { Loader2, ShieldCheck, Terminal, Timer, Zap } from 'lucide-react';
 import type { Me } from '@engine/shared';
 import { api } from '@/api/endpoints';
 import { describeError } from '@/api/client';
 import { ThemeToggle } from '@/components/Layout';
+import { PasswordInput } from '@/components/PasswordInput';
 import { TwoTone } from '@/components/Page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -80,47 +81,6 @@ function FormError({ error }: { error: unknown }) {
     <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
       {describeError(error)}
     </p>
-  );
-}
-
-function PasswordInput({ id, label, hint, autoComplete, value, onChange, minLength }: {
-  id: string;
-  label: string;
-  hint?: string;
-  autoComplete: string;
-  value: string;
-  onChange: (v: string) => void;
-  minLength?: number;
-}) {
-  const [visible, setVisible] = useState(false);
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      <div className="relative">
-        <Input
-          id={id}
-          type={visible ? 'text' : 'password'}
-          autoComplete={autoComplete}
-          required
-          minLength={minLength}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="pr-10"
-        />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="absolute right-0 top-0 size-9 text-muted-foreground"
-          aria-label={visible ? 'Hide password' : 'Show password'}
-          aria-pressed={visible}
-          onClick={() => setVisible((v) => !v)}
-        >
-          {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-        </Button>
-      </div>
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-    </div>
   );
 }
 

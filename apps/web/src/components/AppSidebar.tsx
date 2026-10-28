@@ -9,6 +9,7 @@ import {
   LogOut,
   Moon,
   Play,
+  Settings,
   Shield,
   Sun,
   Terminal,
@@ -53,6 +54,7 @@ const WORKSPACE: NavItem[] = [
   { to: '/executions', label: 'Runs', icon: ListChecks },
 ];
 const CONFIGURE: NavItem[] = [{ to: '/api-keys', label: 'API keys', icon: KeyRound }];
+const ACCOUNT: NavItem[] = [{ to: '/settings', label: 'Settings', icon: Settings }];
 const ADMIN: NavItem[] = [{ to: '/admin', label: 'Platform', icon: Shield }];
 const RESOURCES: NavItem[] = [{ to: '/docs', label: 'API reference', icon: BookOpen, external: true }];
 
@@ -130,6 +132,7 @@ export function AppSidebar() {
       <SidebarContent>
         <NavGroup label="Workspace" items={WORKSPACE} />
         <NavGroup label="Configure" items={CONFIGURE} />
+        <NavGroup label="Account" items={ACCOUNT} />
         {me.user.role === 'platform_admin' && <NavGroup label="Admin" items={ADMIN} />}
         <NavGroup label="Resources" items={RESOURCES} />
       </SidebarContent>
@@ -153,6 +156,10 @@ export function AppSidebar() {
               <span className="block truncate text-xs text-muted-foreground">{me.tenant.name}</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => navigate('/settings')}>
+              <Settings className="size-4" aria-hidden />
+              Settings
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark')}>
               <Sun className="size-4 dark:hidden" aria-hidden />
               <Moon className="hidden size-4 dark:block" aria-hidden />

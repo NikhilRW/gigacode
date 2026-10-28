@@ -3,8 +3,8 @@
 A guided tour of the app, about 20 minutes. It assumes the stack is running and seeded
 (see [Setup](../README.md#setup-guide)). Everything below is something you can do right now.
 
-> **State of the UI.** Sign-in, Register, Overview and the Playground use the new design. The Runs list,
-> run detail, API keys and Admin pages work but still use the earlier layout; they are being redesigned
+> **State of the UI.** Sign-in, Register, Overview, the Playground, API keys and Settings use the new design.
+> The Runs list, run detail and Admin pages work but still use the earlier layout; they are being redesigned
 > (see [PLAN.md](PLAN.md)). The steps say which is which.
 
 Accounts from the seed:
@@ -130,20 +130,22 @@ Sidebar → **Runs**.
 
 Run something slow in the Playground (`import time; time.sleep(8)`, with the time limit set to 10 s), open it in **Runs** while it is running, and press **Cancel**.
 
-## 5. API keys and the REST API (earlier layout)
+## 5. API keys and the REST API
 
 Sidebar → **API keys**.
 
-1. Create a key. **It is shown once**, so copy it now. Only a hash is stored.
-2. Run it from a terminal:
+1. Press **Create key**, give it a name (for example `ci-pipeline`) and confirm.
+2. The key is shown **once**, with a **Copy key** button. Only a hash is stored, so it cannot be shown again. The
+   dialog also has ready-made **curl**, **JavaScript** and **Python** examples with your key already filled in.
+3. Press **I've saved the key**. The key appears in the list as **Active**, with its created time and when it was
+   last used.
+4. Run it from a terminal:
 
 ```sh
 KEY=ce_live_...        # paste your key
 
 # submit
-curl -s -X POST http://localhost:3000/v1/executions \
-  -H "authorization: Bearer $KEY" -H 'content-type: application/json' \
-  -d '{"language":"python","files":[{"path":"main.py","content":"print(6*7)"}],"entryFile":"main.py"}'
+curl -s -X POST http://localhost:3000/v1/executions   -H "authorization: Bearer $KEY" -H 'content-type: application/json'   -d '{"language":"python","files":[{"path":"main.py","content":"print(6*7)"}],"entryFile":"main.py"}'
 # -> {"id":"<id>","status":"QUEUED"}
 
 # poll, then read the output
@@ -151,7 +153,10 @@ curl -s http://localhost:3000/v1/executions/<id> -H "authorization: Bearer $KEY"
 curl -s "http://localhost:3000/v1/executions/<id>/logs?stream=stdout&inline=true" -H "authorization: Bearer $KEY"
 ```
 
-Go back to **Overview**: steps 2 and 3 of the checklist are now ticked.
+Reload the page: the key's **Last used** column is no longer "Never". Go back to **Overview**: steps 2 and 3 of the
+checklist are ticked.
+
+To stop a key working, press **Revoke** on its row and confirm. It fails with "invalid API key" straight away.
 
 Useful details:
 
@@ -161,9 +166,19 @@ Useful details:
 - Asking for a time or memory above your workspace maximum is rejected with a clear error, not silently lowered.
 - The full API is described at <http://localhost:3000/docs> (OpenAPI JSON).
 
-Revoking a key takes effect immediately.
+## 6. Settings
 
-## 6. Admin (earlier layout)
+Sidebar → **Account → Settings**.
+
+- **Profile:** set your name. The Overview greeting uses it right away.
+- **Password:** enter your current password and a new one (at least 10 characters) twice. A wrong current password
+  is explained next to the field, and a mismatch is caught before anything is sent. You stay signed in afterwards.
+- **Appearance:** switch between Light and Dark. The choice is remembered on this device.
+- **Workspace limits:** what your workspace is allowed (runs at the same time, runs per minute, longest run, memory,
+  source size). Only a platform admin can change these.
+- **Session:** sign out of this browser.
+
+## 7. Admin (earlier layout)
 
 Sign out (bottom-left menu), sign in as `admin@example.com`, then sidebar → **Admin → Platform**.
 
@@ -175,7 +190,7 @@ Sign out (bottom-left menu), sign in as `admin@example.com`, then sidebar → **
 Try it: lower the demo tenant's **max concurrent** to 1, then submit several slow runs from the demo account. Only one
 runs at a time, and other tenants are not blocked.
 
-## 7. Watch the platform from the outside
+## 8. Watch the platform from the outside
 
 | What | Where |
 |---|---|
@@ -187,7 +202,7 @@ runs at a time, and other tenants are not blocked.
 
 Source and logs live in S3; Postgres holds only metadata.
 
-## 8. Break things on purpose
+## 9. Break things on purpose
 
 The platform is built to recover from these. Submit a run that sleeps for 8 seconds (`import time; time.sleep(8)`, with the Limits time set to 10 s), and
 while it is running, in a terminal:
@@ -220,7 +235,7 @@ To run all the failure scenarios automatically (about 10 minutes):
 bash scripts/chaos/run-all.sh
 ```
 
-## 9. Where to go next
+## 10. Where to go next
 
 - How the pieces fit: [ARCHITECTURE.md](ARCHITECTURE.md)
 - What the sandbox does and does not protect against: [SECURITY.md](SECURITY.md)

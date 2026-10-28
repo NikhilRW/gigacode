@@ -8,6 +8,7 @@ import { Layout } from './components/Layout.tsx';
 import { AdminPage } from './pages/Admin.tsx';
 import { ApiKeysPage } from './pages/ApiKeys.tsx';
 import { LoginPage, RegisterPage } from './pages/Auth.tsx';
+import { SettingsPage } from './pages/Settings.tsx';
 import { DashboardPage } from './pages/Dashboard.tsx';
 import { ExecutionDetailPage } from './pages/ExecutionDetail.tsx';
 import { ExecutionsPage } from './pages/Executions.tsx';
@@ -53,6 +54,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="executions" element={<ExecutionsPage />} />
             <Route path="executions/:id" element={<ExecutionDetailPage />} />
             <Route path="api-keys" element={<ApiKeysPage />} />
+            <Route path="settings" element={<SettingsPage />} />
             <Route
               path="admin"
               element={
