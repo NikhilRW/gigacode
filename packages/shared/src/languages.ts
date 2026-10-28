@@ -22,7 +22,8 @@ export const LANGUAGES: Record<LanguageId, LanguageConfig> = {
     label: 'Python 3.12',
     rootfs: 'python',
     defaultEntryFile: 'main.py',
-    run: (entry) => ['/usr/local/bin/python3', '-I', '-B', entry],
+    // -u: unbuffered, so output printed before a timeout or crash is not lost with the process
+    run: (entry) => ['/usr/local/bin/python3', '-I', '-B', '-u', entry],
     helloWorld: 'print("hello")\n',
     monaco: 'python',
   },

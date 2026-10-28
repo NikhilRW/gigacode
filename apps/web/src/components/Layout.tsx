@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Moon, Sun } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/s
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { applyTheme, currentTheme, type Theme } from '@/lib/theme';
+import { cn } from '@/lib/utils';
 
 /** Icon-only theme switch used on public screens (sign-in, register). */
 export function ThemeToggle() {
@@ -28,6 +29,8 @@ export function ThemeToggle() {
 }
 
 export function Layout() {
+  // The Playground uses the full width for the editor; other pages keep a readable column.
+  const wide = useLocation().pathname === '/new';
   return (
     <TooltipProvider delayDuration={200}>
       <SidebarProvider>
@@ -43,7 +46,7 @@ export function Layout() {
             <SidebarTrigger aria-label="Open navigation" />
             <span className="text-sm font-semibold">GigaCode</span>
           </header>
-          <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:px-8 md:py-10">
+          <main id="main" className={cn('mx-auto w-full flex-1 px-4 py-6 md:px-8 md:py-10', wide ? 'max-w-none md:py-6' : 'max-w-6xl')}>
             <Outlet />
           </main>
         </SidebarInset>

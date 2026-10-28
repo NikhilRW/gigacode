@@ -10,8 +10,8 @@ test('register, run Python, see live status and output', async ({ page }) => {
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page.getByRole('heading', { name: /Run code, safely contained/ })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Playground' }).first().click();
-  await expect(page.getByRole('heading', { name: 'New execution' })).toBeVisible();
+  await page.getByRole('link', { name: 'Playground', exact: true }).first().click();
+  await expect(page.getByRole('heading', { name: 'Playground' })).toBeVisible();
 
   // Replace the starter program through Monaco's model.
   const editor = page.locator('.monaco-editor').first();
@@ -27,7 +27,7 @@ test('register, run Python, see live status and output', async ({ page }) => {
   const chip = page.getByTestId('status-chip').first();
   await expect(chip).toBeVisible({ timeout: 15_000 });
   await expect(chip).toHaveAttribute('data-status', 'SUCCESS', { timeout: 60_000 });
-  await expect(page.getByTestId('timeline').getByTestId('status-chip').nth(1)).toBeVisible();
+  await expect(page.getByTestId('run-progress')).toHaveAttribute('data-step', 'Done');
 
   await expect(page.getByTestId('stdout-panel')).toContainText('hello from e2e', { timeout: 30_000 });
 });

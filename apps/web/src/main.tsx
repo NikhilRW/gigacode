@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import './index.css';
 
 // Monaco is large: the Playground (the only page with an editor) loads on demand.
-const NewExecutionPage = lazy(() => import('./pages/NewExecution.tsx').then((m) => ({ default: m.NewExecutionPage })));
+const PlaygroundPage = lazy(() => import('./pages/Playground.tsx').then((m) => ({ default: m.PlaygroundPage })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,7 +46,7 @@ createRoot(document.getElementById('root')!).render(
               path="new"
               element={
                 <Suspense fallback={<Skeleton className="h-96 w-full" />}>
-                  <NewExecutionPage />
+                  <PlaygroundPage />
                 </Suspense>
               }
             />

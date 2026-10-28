@@ -16,6 +16,20 @@ self.MonacoEnvironment = {
 };
 loader.config({ monaco });
 
+// Editor themes share the app's card colours so the editor sits flush inside its panel.
+monaco.editor.defineTheme('gigacode-light', {
+  base: 'vs',
+  inherit: true,
+  rules: [],
+  colors: { 'editor.background': '#ffffff', 'editorGutter.background': '#ffffff', 'editor.lineHighlightBackground': '#f6f5f3' },
+});
+monaco.editor.defineTheme('gigacode-dark', {
+  base: 'vs-dark',
+  inherit: true,
+  rules: [],
+  colors: { 'editor.background': '#191715', 'editorGutter.background': '#191715', 'editor.lineHighlightBackground': '#221f1d' },
+});
+
 function useIsDark() {
   const [dark, setDark] = useState(() => currentTheme() === 'dark');
   useEffect(() => {
@@ -48,15 +62,24 @@ export function CodeEditor({
   };
 
   return (
-    <div className="h-[420px] overflow-hidden rounded-b-md border border-t-0 border-slate-300 dark:border-slate-700">
+    <div className="h-full min-h-[280px] w-full overflow-hidden">
       <Editor
         path={path}
         language={language}
         value={value}
-        theme={dark ? 'vs-dark' : 'light'}
+        theme={dark ? 'gigacode-dark' : 'gigacode-light'}
         onChange={(v) => onChange(v ?? '')}
         onMount={onMount}
-        options={{ minimap: { enabled: false }, fontSize: 14, automaticLayout: true, scrollBeyondLastLine: false }}
+        options={{
+          minimap: { enabled: false },
+          fontSize: 13,
+          fontFamily: '"JetBrains Mono Variable", ui-monospace, monospace',
+          automaticLayout: true,
+          scrollBeyondLastLine: false,
+          padding: { top: 12, bottom: 12 },
+          renderLineHighlight: 'line',
+          tabSize: 4,
+        }}
       />
     </div>
   );

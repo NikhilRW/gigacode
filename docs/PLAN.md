@@ -82,7 +82,7 @@ light and dark themes matched to the tokens.
    - Toasts for errors: 429 shows a retry countdown, 401 returns to sign-in, network errors show a retry button.
    - ⌘K palette: go to pages, start a new run, open a run by ID.
    - Visible focus rings, labelled controls, keyboard paths for every action.
-   - Layouts verified at 390 / 768 / 1440 px.
+   - Layouts verified at desktop widths (1440 and 1280 px). Phone widths are out of scope for now.
 
 ## Backend, DB and worker additions
 
@@ -98,6 +98,8 @@ light and dark themes matched to the tokens.
 
 ## Phases
 
+Status: P1, P2, P3 and P4 done and committed. Next: P5 (Runs and run detail).
+
 | # | Phase | Done when |
 |---|---|---|
 | P1 | **Design foundation**: shadcn init (Tailwind 3 compatible), tokens, fonts, sidebar app shell as in the reference, theme toggle, Toaster, Monaco loaded only on the Playground | Every existing page renders inside the new shell; `typecheck` and `build` pass; first-load JS is much smaller than today's 930 KB gzipped |
@@ -107,7 +109,7 @@ light and dark themes matched to the tokens.
 | P5 | **Runs + run detail** | Filter, search, paginate, re-run, cancel, open in Playground all work (Playwright) |
 | P6 | **API keys + Settings** | Create a key → copy → curl snippet works against the API; rename profile; change password; sign out (Playwright) |
 | P7 | **Admin** | Requeue a dead letter and edit tenant limits from the UI (Playwright, seeded admin) |
-| P8 | **Polish**: empty, loading and error states; ⌘K palette; responsive sheet sidebar; accessibility | `@axe-core/playwright` reports no serious or critical issues on every page; screenshots at 390/768/1440 in light and dark reviewed |
+| P8 | **Polish**: empty, loading and error states; ⌘K palette; responsive sheet sidebar; accessibility | `@axe-core/playwright` reports no serious or critical issues on every page; desktop screenshots in light and dark reviewed |
 | P9 | **Release check**: rebuild compose from a fresh clone, run the full regression set (unit, integration, abuse, chaos, load, Playwright suite), update README, TEST_REPORT and MILESTONES | Everything green and recorded |
 
 ## Assumptions (I'll proceed on these unless you say otherwise)

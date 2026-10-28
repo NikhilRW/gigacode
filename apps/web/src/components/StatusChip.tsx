@@ -1,26 +1,38 @@
 import type { ExecutionStatus } from '@engine/shared';
+import { cn } from '@/lib/utils';
+import { STATUS_LABEL, STATUS_TONE, type Tone } from '@/lib/runStatus';
 
-const COLORS: Record<ExecutionStatus, string> = {
-  CREATED: 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100',
-  QUEUED: 'bg-amber-100 text-amber-900 dark:bg-amber-900/60 dark:text-amber-100',
-  DISPATCHED: 'bg-sky-100 text-sky-900 dark:bg-sky-900/60 dark:text-sky-100',
-  STARTING: 'bg-cyan-100 text-cyan-900 dark:bg-cyan-900/60 dark:text-cyan-100',
-  RUNNING: 'bg-indigo-100 text-indigo-900 dark:bg-indigo-900/60 dark:text-indigo-100',
-  SUCCESS: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-100',
-  FAILED: 'bg-rose-100 text-rose-900 dark:bg-rose-900/60 dark:text-rose-100',
-  TIMEOUT: 'bg-orange-100 text-orange-900 dark:bg-orange-900/60 dark:text-orange-100',
-  CANCELLED: 'bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100',
-  DEAD_LETTERED: 'bg-fuchsia-100 text-fuchsia-900 dark:bg-fuchsia-900/60 dark:text-fuchsia-100',
+const TONE_CLASS: Record<Tone, string> = {
+  neutral: 'border-border bg-muted text-muted-foreground',
+  info: 'border-primary/20 bg-primary/10 text-foreground',
+  success: 'border-success/30 bg-success/10 text-success',
+  warning: 'border-warning/30 bg-warning/10 text-warning',
+  danger: 'border-destructive/30 bg-destructive/10 text-destructive',
 };
 
-export function StatusChip({ status }: { status: ExecutionStatus }) {
+const DOT_CLASS: Record<Tone, string> = {
+  neutral: 'bg-muted-foreground/60',
+  info: 'bg-primary animate-pulse',
+  success: 'bg-success',
+  warning: 'bg-warning',
+  danger: 'bg-destructive',
+};
+
+/** Status badge. The raw enum stays in data-status for tests and tooling; people see a plain label. */
+export function StatusChip({ status, className }: { status: ExecutionStatus; className?: string }) {
+  const tone = STATUS_TONE[status];
   return (
     <span
       data-testid="status-chip"
       data-status={status}
-      className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold tracking-wide ${COLORS[status]}`}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
+        TONE_CLASS[tone],
+        className,
+      )}
     >
-      {status}
+      <span aria-hidden className={cn('size-1.5 rounded-full', DOT_CLASS[tone])} />
+      {STATUS_LABEL[status]}
     </span>
   );
 }
