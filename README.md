@@ -149,7 +149,8 @@ The full guided tour is in **[docs/WALKTHROUGH.md](docs/WALKTHROUGH.md)**. The s
 4. **Break it on purpose** with the ready-made snippets in the walkthrough: an infinite loop gives "Timed out after
    1.00 s", a memory hog gives "Ran out of memory (64 MB limit)", a C syntax error opens the compiler output, and a
    network call is blocked.
-5. **Runs** lists everything you have run. Open a run to see its timeline and attempts, re-run it, or cancel it.
+5. **Runs** lists everything you have run, with search by run ID, filters and paging. Open a run to see its output,
+   timeline, attempts and source, re-run it, open it in the Playground, or cancel it.
 6. **API keys**: create a key (shown once, with copy buttons and curl, JavaScript and Python examples), call the REST
    API with it, then revoke it. **Settings** has your profile, password, theme and workspace limits.
 7. **Admin** (as `admin@example.com`): workers, queue depth, dead-lettered runs, and per-workspace limits.

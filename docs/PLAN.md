@@ -98,7 +98,7 @@ light and dark themes matched to the tokens.
 
 ## Phases
 
-Status: P1, P2, P3, P4 and P6 done and committed. P5 (Runs and run detail) was skipped for now at your request and is next, then P7 (Admin).
+Status: P1 to P6 done and committed. Next: P7 (Admin), then P8 (polish) and P9 (release check).
 
 | # | Phase | Done when |
 |---|---|---|

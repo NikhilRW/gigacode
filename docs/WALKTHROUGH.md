@@ -3,9 +3,8 @@
 A guided tour of the app, about 20 minutes. It assumes the stack is running and seeded
 (see [Setup](../README.md#setup-guide)). Everything below is something you can do right now.
 
-> **State of the UI.** Sign-in, Register, Overview, the Playground, API keys and Settings use the new design.
-> The Runs list, run detail and Admin pages work but still use the earlier layout; they are being redesigned
-> (see [PLAN.md](PLAN.md)). The steps say which is which.
+> **State of the UI.** Everything except Admin uses the new design. The Admin pages work but still use the earlier
+> layout; they are being redesigned (see [PLAN.md](PLAN.md)). The steps say which is which.
 
 Accounts from the seed:
 
@@ -120,15 +119,31 @@ while True:
 
 Result: contained by the process limit. The run does not affect other runs or the worker.
 
-## 4. Runs (earlier layout)
+## 4. Runs
 
 Sidebar → **Runs**.
 
-- Filter by status, language and date, and page through the results.
-- Click a run to open its detail page: metadata, state timeline, attempts, output.
-- **Re-run** submits the same files again. **Cancel** is available while a run is active.
+- **Search by run ID:** type the first few characters of an ID (for example the 8 shown in the table).
+- **Filters:** status, language and a date range. They are kept in the address bar, so a filtered view can be
+  bookmarked or shared. **Clear filters** resets them.
+- **Table:** status, short ID, language, when it started (hover for the exact time) and how long it took. Click
+  anywhere on a row to open the run. The list refreshes by itself while any run on the page is still moving.
+- **Paging:** Previous and Next at the bottom.
 
-Run something slow in the Playground (`import time; time.sleep(8)`, with the time limit set to 10 s), open it in **Runs** while it is running, and press **Cancel**.
+Open a run:
+
+- **Result:** the progress strip, a plain-language explanation if it failed, exit code, wall time, CPU time and peak
+  memory, then tabs:
+  - **Output:** stdout and stderr, with Copy. A failed run opens on stderr.
+  - **Timeline:** what happened and when, in words ("Picked up by a worker", "Stopped: time limit reached").
+  - **Attempts:** each try, which worker, and the result. A run that survived a lost worker says so.
+  - **Source:** the exact files and input that were submitted, read-only.
+- **Details:** full run ID with Copy, language, entry file, attempts used, created and finished times, limits.
+- **Re-run** submits the same files and input again and takes you to the new run. **Open in Playground** loads the
+  code into the editor so you can change it. **Cancel run** (while active) asks first.
+
+Try it: run `import time; time.sleep(8)` in the Playground (time limit 10 s), open it from **Runs** while it is
+running, and cancel it.
 
 ## 5. API keys and the REST API
 
