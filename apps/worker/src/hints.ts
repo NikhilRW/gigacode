@@ -9,7 +9,8 @@ import { redisKeys, type StatusEvent } from '@engine/shared';
 export class Hints {
   private readonly redis: Redis;
   private readonly sub: Redis;
-  private wake: (() => void) | null = null;
+  /** Every idle slot waiting for a hint; a wake-up releases all of them. */
+  private readonly waiters = new Set<() => void>();
 
   constructor(url: string, private readonly log: Logger) {
     const opts = { enableOfflineQueue: false, maxRetriesPerRequest: 1, connectTimeout: 2000, lazyConnect: false };
@@ -17,18 +18,19 @@ export class Hints {
     this.sub = new Redis(url, { ...opts, enableOfflineQueue: true });
     for (const c of [this.redis, this.sub]) c.on('error', () => {});
     this.sub.subscribe(redisKeys.queueWake).catch(() => {});
-    this.sub.on('message', () => this.wake?.());
+    this.sub.on('message', () => [...this.waiters].forEach((wake) => wake()));
   }
 
   /** Sleep up to `ms`, returning early when the API publishes `queue:wake`. */
   waitForWork(ms: number): Promise<void> {
     return new Promise((resolve) => {
-      const timer = setTimeout(done, ms);
-      function done() {
+      const done = () => {
         clearTimeout(timer);
+        this.waiters.delete(done);
         resolve();
-      }
-      this.wake = done;
+      };
+      const timer = setTimeout(done, ms);
+      this.waiters.add(done);
     });
   }
 

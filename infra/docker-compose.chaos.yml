@@ -1,0 +1,12 @@
+# Chaos-test overlay: a second worker that never extends its leases (simulated partition).
+# Used by scripts/chaos/run-all.sh. Never deploy this.
+services:
+  worker-chaos:
+    extends: { service: worker }
+    environment:
+      CHAOS_DROP_HEARTBEATS: 'true'
+      LEASE_SECONDS: '4'
+      WORKER_SLOTS: '1'
+      WORKER_ID: chaos-worker
+    depends_on: !reset []
+    profiles: [chaos]

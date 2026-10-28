@@ -15,13 +15,14 @@
     "test:sandbox": "pnpm --filter @engine/sandbox test:abuse",
     "test:e2e": "pnpm --filter @engine/web test:e2e",
     "migrate": "pnpm --filter @engine/db migrate",
-    "seed": "tsx scripts/seed.ts",
+    "seed": "pnpm --filter @engine/api seed",
     "loadtest": "tsx scripts/loadtest.ts",
     "dev:api": "pnpm --filter @engine/api dev",
     "dev:worker": "pnpm --filter @engine/worker dev",
     "dev:web": "pnpm --filter @engine/web dev",
     "expo:web": "bun run --cwd apps/expo web",
-    "expo:test": "bun test apps/expo/tests"
+    "expo:test": "bun test apps/expo/tests",
+    "chaos": "bash scripts/chaos/run-all.sh"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

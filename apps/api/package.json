@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "start": "tsx src/main.ts",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "seed": "tsx src/seed.ts"
   },
   "dependencies": {
     "@engine/db": "workspace:*",
