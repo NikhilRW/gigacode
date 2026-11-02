@@ -12,6 +12,68 @@ export class ApiError extends Error {
   constructor(public status: number, message: string, public code = 'request_failed', public requestId?: string) { super(message); this.name = 'ApiError'; }
 }
 export const describeError = (error: unknown) => error instanceof Error ? error.message : 'Something went wrong. Please try again.';
+
+export function getBrowserOrigin(): string | null {
+  return typeof window !== 'undefined' && typeof window.location?.origin === 'string'
+    ? window.location.origin
+    : null;
+}
+
+function transportError(error: unknown, url: string, timedOut: boolean): ApiError {
+  const origin = getBrowserOrigin();
+  const reason = error instanceof Error ? `${error.name}: ${error.message}` : 'No readable network response';
+  const message = timedOut
+    ? `The API request timed out: ${url}. A submitted run may still exist in History.`
+    : `Cannot reach the API at ${url}. ${reason}.`;
+  const browserHint = origin
+    ? ` Browser origin: ${origin}. The API must allow this exact origin in WEB_ORIGIN. HTTPS pages also need an HTTPS API.`
+    : '';
+  // Report only public request information, never bodies, passwords or credentials.
+  console.warn('GigaCode API connection failed', { url, browserOrigin: origin, reason });
+  return new ApiError(0, `${message}${browserHint} For Codespaces, verify port 3000 is Public.`, timedOut ? 'request_timeout' : 'network_error');
+}
+
+async function readJson(response: Response): Promise<unknown> {
+  const type = response.headers.get('content-type') ?? '';
+  if (!/(?:application\/json|\+json)(?:\s*;|$)/i.test(type)) {
+    throw new ApiError(response.status, `The server responded with ${type || 'an unknown content type'} instead of API JSON (HTTP ${response.status}). Check that this is API port 3000. A private Codespaces port may serve GitHub login HTML.`, 'invalid_response');
+  }
+  try { return await response.json(); }
+  catch { throw new ApiError(response.status, `The API returned unreadable JSON (HTTP ${response.status}).`, 'invalid_response'); }
+}
+
+export interface ConnectionReport {
+  url: string;
+  httpStatus: number;
+  readiness: 'ready' | 'degraded';
+  postgres: string;
+  redis: string;
+  s3: string;
+}
+
+/** Public readiness request, using JSON headers so browsers perform the CORS preflight. */
+export async function checkApiConnection(input: string): Promise<ConnectionReport> {
+  const url = `${normalizeApiUrl(input)}/readyz`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(url, {
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      credentials: 'omit', redirect: 'error', signal: controller.signal,
+    });
+    const data = await readJson(response);
+    if (!data || typeof data !== 'object' || !('status' in data) || (data.status !== 'ready' && data.status !== 'degraded')) {
+      throw new ApiError(response.status, `The URL responded, but it is not GigaCode's readiness endpoint (HTTP ${response.status}). Use the API origin on port 3000.`, 'invalid_response');
+    }
+    const record = data as Record<string, unknown>;
+    const service = (name: string) => typeof record[name] === 'string' ? String(record[name]) : 'unknown';
+    if (!response.ok && response.status !== 503) throw new ApiError(response.status, `Readiness returned HTTP ${response.status}.`, 'request_failed');
+    return { url, httpStatus: response.status, readiness: data.status, postgres: service('postgres'), redis: service('redis'), s3: service('s3') };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw transportError(error, url, controller.signal.aborted);
+  } finally { clearTimeout(timer); }
+}
 type Options = { body?: unknown; query?: Record<string, string | number | undefined>; signal?: AbortSignal; text?: boolean; public?: boolean };
 export type Credential = { token: string; expiresAt: number; baseUrl: string };
 export class ApiClient {
@@ -46,7 +108,10 @@ export class ApiClient {
             if ('code' in data.error && typeof data.error.code === 'string') code = data.error.code;
             if ('requestId' in data.error && typeof data.error.requestId === 'string') requestId = data.error.requestId;
           }
-        } catch { /* HTML from a private forwarding proxy is not an API error body. */ }
+        } catch {
+          const type = response.headers.get('content-type') ?? '';
+          if (type.includes('text/html')) message += ' Received HTML instead of API JSON. Verify API port 3000 and Codespaces Public visibility.';
+        }
         if (response.status === 401 && !options.public) { this.unauthorized(); message = 'Your session expired. Sign in again; device drafts are safe.'; }
         if (response.status === 403) message += ' Check your permissions and Codespaces port visibility.';
         if (response.status === 429) message += ' Wait before trying again; tenant limits apply.';
@@ -54,11 +119,11 @@ export class ApiClient {
       }
       if (response.status === 204) return undefined as T;
       if (options.text) return { text: await response.text(), truncated: response.headers.get('x-truncated') === 'true' } as T;
-      return await response.json() as T;
+      return await readJson(response) as T;
     } catch (error) {
       if (error instanceof ApiError) throw error;
       if (options.signal?.aborted) throw error;
-      throw new ApiError(0, controller.signal.aborted ? 'The server took too long. Retry to check the latest state; a submitted run may still exist in History.' : 'Cannot reach the API. Check your connection, server URL, port visibility, and browser CORS settings.', 'network_error');
+      throw transportError(error, `${base}${path}`, controller.signal.aborted);
     } finally { clearTimeout(timeout); options.signal?.removeEventListener('abort', abort); }
   }
   async optional<T>(path: string, options: Options = {}): Promise<T | null> {
