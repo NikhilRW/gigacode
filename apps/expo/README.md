@@ -104,14 +104,15 @@ so the phone does not need access to MinIO or an internal S3 URL.
 ## Build commands
 
 For downloadable GitHub Actions IPAs and a local POCO X4 ARM64 APK, see
-**[Native build instructions](../../docs/NATIVE_BUILDS.md)**. The iOS workflow offers unsigned device
-IPA, EAS-signed device IPA and simulator `.app` artifacts.
+**[Native build instructions](../../docs/NATIVE_BUILDS.md)**. The generated native-sim workflow provides
+a live simulator, simulator `.app` export and unsigned device IPA. Signed distribution uses the EAS profile.
 
 ```sh
 bun run web             # Browser development
 bun run build           # Static browser export to dist/
 bun run build:native    # Android/iOS JS + DOM exports to .expo/export-native/
 bun run apk:arm64       # Windows/PowerShell 7: local ARM64 Release APK (Android SDK/JDK required)
+bun run ios:ipa         # Windows/PowerShell 7 + gh: dispatch native-sim Expo IPA export on GitHub
 bunx eas-cli build --platform android --profile development
 bunx eas-cli build --platform ios --profile development
 ```
