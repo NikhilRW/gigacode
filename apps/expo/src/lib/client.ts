@@ -77,7 +77,13 @@ export async function checkApiConnection(input: string): Promise<ConnectionRepor
 type Options = { body?: unknown; query?: Record<string, string | number | undefined>; signal?: AbortSignal; text?: boolean; public?: boolean };
 export type Credential = { token: string; expiresAt: number; baseUrl: string };
 export class ApiClient {
-  constructor(readonly baseUrl: string, private credential: Credential | null, private unauthorized: () => void, private fetcher: typeof fetch = fetch) {}
+  constructor(
+    readonly baseUrl: string,
+    private credential: Credential | null,
+    private unauthorized: () => void,
+    // Browser fetch requires its global receiver, not the ApiClient instance.
+    private fetcher: typeof fetch = (input, init) => globalThis.fetch(input, init),
+  ) {}
   async request<T>(method: string, path: string, options: Options = {}): Promise<T> {
     if (!this.baseUrl) throw new ApiError(0, 'Set your API server URL in Connection settings first.', 'not_configured');
     if (!path.startsWith('/v1/')) throw new Error('Only /v1 API paths are allowed.');
