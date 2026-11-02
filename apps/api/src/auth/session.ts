@@ -1,13 +1,17 @@
 import { randomBytes } from 'node:crypto';
 import jwt from 'jsonwebtoken';
+import { z } from 'zod';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { redisKeys, type Role } from '@engine/shared';
+import { redisKeys, roleSchema, type Role } from '@engine/shared';
 import { AuthRepo } from '@engine/db';
 import type { AppContext } from '../context.ts';
 import { ApiError, forbidden, unauthorized } from '../errors.ts';
 import { parseApiKey, verifySecret } from './apikeys.ts';
 
 export const SESSION_COOKIE = 'session';
+export const NATIVE_SESSION_PREFIX = 'ce_session_';
+const COOKIE_AUDIENCE = 'code-exec-cookie';
+const NATIVE_AUDIENCE = 'code-exec-native';
 const SESSION_TTL_SECONDS = 7 * 24 * 3600;
 
 export interface AuthContext {
@@ -15,16 +19,31 @@ export interface AuthContext {
   userId: string | null;
   apiKeyId: string | null;
   role: Role;
-  via: 'cookie' | 'apikey';
+  via: 'cookie' | 'native' | 'apikey';
   csrf: string;
 }
 
-interface SessionClaims {
-  sub: string;
-  tid: string;
-  role: Role;
-  csrf: string;
-}
+// Verification of a signature alone does not establish the shape or purpose of a JWT.
+const userClaimsSchema = z.object({
+  sub: z.string().uuid(),
+  tid: z.string().uuid(),
+  role: roleSchema,
+  iat: z.number().int().nonnegative(),
+  exp: z.number().int().positive(),
+});
+const cookieClaimsSchema = userClaimsSchema.extend({
+  csrf: z.string().min(1),
+  aud: z.literal(COOKIE_AUDIENCE),
+  type: z.literal('cookie_session'),
+});
+// Keep already-issued browser sessions valid for their original lifetime.
+const legacyCookieClaimsSchema = cookieClaimsSchema.extend({ aud: z.undefined(), type: z.undefined() });
+const nativeClaimsSchema = userClaimsSchema.extend({
+  aud: z.literal(NATIVE_AUDIENCE),
+  type: z.literal('native_session'),
+});
+
+type SessionUser = { id: string; tenantId: string; role: Role };
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -35,11 +54,13 @@ declare module 'fastify' {
 export function issueSession(
   ctx: AppContext,
   reply: FastifyReply,
-  user: { id: string; tenantId: string; role: Role },
+  user: SessionUser,
 ): string {
   const csrf = randomBytes(24).toString('base64url');
-  const claims: SessionClaims = { sub: user.id, tid: user.tenantId, role: user.role, csrf };
-  const token = jwt.sign(claims, ctx.config.JWT_SECRET, { algorithm: 'HS256', expiresIn: SESSION_TTL_SECONDS });
+  const claims = { sub: user.id, tid: user.tenantId, role: user.role, csrf, type: 'cookie_session' };
+  const token = jwt.sign(claims, ctx.config.JWT_SECRET, {
+    algorithm: 'HS256', audience: COOKIE_AUDIENCE, expiresIn: SESSION_TTL_SECONDS,
+  });
   reply.setCookie(SESSION_COOKIE, token, {
     path: '/',
     httpOnly: true,
@@ -48,6 +69,16 @@ export function issueSession(
     maxAge: SESSION_TTL_SECONDS,
   });
   return csrf;
+}
+
+/** Native sessions are bearer credentials, never cookies or browser CSRF secrets. */
+export function issueNativeSession(ctx: AppContext, user: SessionUser): { token: string; expiresIn: number } {
+  const token = jwt.sign(
+    { sub: user.id, tid: user.tenantId, role: user.role, type: 'native_session' },
+    ctx.config.JWT_SECRET,
+    { algorithm: 'HS256', audience: NATIVE_AUDIENCE, expiresIn: SESSION_TTL_SECONDS },
+  );
+  return { token: `${NATIVE_SESSION_PREFIX}${token}`, expiresIn: SESSION_TTL_SECONDS };
 }
 
 export function clearSession(ctx: AppContext, reply: FastifyReply): void {
@@ -83,8 +114,25 @@ async function authenticateApiKey(ctx: AppContext, raw: string): Promise<AuthCon
 
 function authenticateCookie(ctx: AppContext, token: string): AuthContext | null {
   try {
-    const c = jwt.verify(token, ctx.config.JWT_SECRET, { algorithms: ['HS256'] }) as SessionClaims;
+    const payload = jwt.verify(token, ctx.config.JWT_SECRET, { algorithms: ['HS256'] });
+    const parsed = z.union([cookieClaimsSchema, legacyCookieClaimsSchema]).safeParse(payload);
+    if (!parsed.success) return null;
+    const c = parsed.data;
     return { tenantId: c.tid, userId: c.sub, apiKeyId: null, role: c.role, via: 'cookie', csrf: c.csrf };
+  } catch {
+    return null;
+  }
+}
+
+function authenticateNative(ctx: AppContext, token: string): AuthContext | null {
+  try {
+    const payload = jwt.verify(token.slice(NATIVE_SESSION_PREFIX.length), ctx.config.JWT_SECRET, {
+      algorithms: ['HS256'], audience: NATIVE_AUDIENCE,
+    });
+    const parsed = nativeClaimsSchema.safeParse(payload);
+    if (!parsed.success) return null;
+    const c = parsed.data;
+    return { tenantId: c.tid, userId: c.sub, apiKeyId: null, role: c.role, via: 'native', csrf: '' };
   } catch {
     return null;
   }
@@ -96,7 +144,13 @@ export function authHook(ctx: AppContext) {
     req.auth = null;
     const header = req.headers.authorization;
     if (header?.startsWith('Bearer ')) {
-      req.auth = await authenticateApiKey(ctx, header.slice(7).trim());
+      const token = header.slice(7).trim();
+      if (token.startsWith(NATIVE_SESSION_PREFIX)) {
+        req.auth = authenticateNative(ctx, token);
+        if (!req.auth) throw new ApiError(401, 'invalid_session', 'invalid or expired native session');
+        return;
+      }
+      req.auth = await authenticateApiKey(ctx, token);
       if (!req.auth) throw new ApiError(401, 'invalid_api_key', 'invalid or revoked API key');
       return;
     }

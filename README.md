@@ -13,7 +13,9 @@ memory use.
 The isolation model is **layered isolation and resource containment**, not a guarantee. The host kernel stays in the
 trusted computing base. See [docs/SECURITY.md](docs/SECURITY.md).
 
-> `apps/expo` is a separate mobile prototype. It is deprioritized and not part of the pnpm workspace.
+> `apps/expo` is the Android, iOS, and web client, preserving its own ink-navy/azure and ice-blue themes.
+> It connects to this backend using user bearer sessions. Install it separately with Bun from `apps/expo`;
+> it is not part of the backend's pnpm workspace. See its [README](apps/expo/README.md).
 
 **Contents:** [Setup guide](#setup-guide) · [Walkthrough](#walkthrough) · [Using the API](#using-the-api) ·
 [Repository layout](#repository-layout) · [Tests](#tests) · [Troubleshooting](#troubleshooting) · [Docs](#docs)
@@ -21,6 +23,8 @@ trusted computing base. See [docs/SECURITY.md](docs/SECURITY.md).
 ---
 
 ## Setup guide
+
+For a cloud development runner and Expo Android/iOS device setup, see [GitHub Codespaces](docs/CODESPACES.md).
 
 ### 1. What you need
 

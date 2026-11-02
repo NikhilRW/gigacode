@@ -1,0 +1,38 @@
+{
+  "name": "GigaCode — Codespaces + Expo",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:4.1.3": {
+      "moby": true,
+      "version": "latest",
+      "dockerDashComposeVersion": "v2"
+    }
+  },
+  "privileged": true,
+  "remoteUser": "node",
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb",
+    "storage": "32gb"
+  },
+  "forwardPorts": [3000, 8081],
+  "portsAttributes": {
+    "3000": {
+      "label": "GigaCode API (opt in to Public for a phone)",
+      "protocol": "http",
+      "onAutoForward": "notify"
+    },
+    "8081": {
+      "label": "Expo Metro / optional web preview",
+      "protocol": "http",
+      "onAutoForward": "silent"
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "ignore"
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh"
+}

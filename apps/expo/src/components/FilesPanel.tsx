@@ -3,28 +3,31 @@ import { useDrafts } from '@/state/DraftProvider';
 import { font, type Colors } from '@/theme';
 import { useStyles, useTheme } from '@/state/ThemeProvider';
 import { Button, Icon } from './ui';
+import { useAuth } from '@/state/AuthProvider';
+import { languages } from '@/lib/languages';
 
 export function FilesPanel({ onNew, onOpen }: { onNew: () => void; onOpen?: () => void }) {
   const { colors, common } = useTheme();
   const styles = useStyles(createStyles);
   const { library, ready, open } = useDrafts();
+  const { signedIn } = useAuth();
   return <View style={styles.panel}>
     <View style={[common.row, { justifyContent: 'space-between', marginBottom: 24 }]}><Text style={[common.text, { fontFamily: font.medium }]}>Your files</Text><Icon name="folder" size={16} /></View>
-    <Button label="New Python file" icon="plus" onPress={onNew} disabled={!ready} />
+    <Button label={`New ${languages[library.language].label} file`} icon="plus" onPress={onNew} disabled={!ready} />
     <View style={[common.row, { marginTop: 28, marginBottom: 12, gap: 7 }]}><View style={styles.dot} /><Text style={common.eyebrow}>ON THIS DEVICE</Text></View>
     <ScrollView style={{ flex: 1, minHeight: 100 }} contentContainerStyle={{ gap: 4 }}>
-      {library.files.map(file => <Pressable key={file.id} accessibilityRole="button" accessibilityLabel={`Open ${file.name}`} accessibilityState={{ selected: library.activeId === file.id, disabled: !ready }} disabled={!ready}
+      {library.files.filter(file => file.language === library.language).map(file => <Pressable key={file.id} accessibilityRole="button" accessibilityLabel={`Open ${file.name}`} accessibilityState={{ selected: library.activeId === file.id, disabled: !ready }} disabled={!ready}
         onPress={() => { open(file.id); onOpen?.(); }} style={({ pressed }) => [styles.file, (library.activeId === file.id || pressed) && styles.activeFile]}>
         <Icon name="file-text" size={15} color={library.activeId === file.id ? colors.accent : colors.faint} />
-        <Text numberOfLines={1} style={[common.text, { flex: 1, fontSize: 12, color: library.activeId === file.id ? colors.text : colors.muted }]}>{file.name}</Text>
+        <Text numberOfLines={1} style={[common.text, { flex: 1, fontSize: 12, color: library.activeId === file.id ? colors.text : colors.muted }]}>{file.name}{library.entries[library.language] === file.id ? ' · entry' : ''}</Text>
         {library.activeId === file.id && <View style={styles.activeDot} />}
       </Pressable>)}
     </ScrollView>
     <View style={styles.cloud}>
       <Icon name="cloud" size={22} color={colors.accent} />
       <Text style={[common.text, { fontFamily: font.medium, marginTop: 14 }]}>Ideas, everywhere.</Text>
-      <Text style={[common.muted, { fontSize: 12, marginTop: 7, marginBottom: 15 }]}>Cloud files will live here when accounts are connected. Local drafts stay on this device.</Text>
-      <Button label="Sign in for cloud" icon="arrow-up-right" href="/login" compact />
+      <Text style={[common.muted, { fontSize: 12, marginTop: 7, marginBottom: 15 }]}>Drafts stay on this device. Signed-in runs keep their submitted source and results in execution history.</Text>
+      <Button label={signedIn ? 'Execution history' : 'Sign in to run'} icon="arrow-up-right" href={signedIn ? '/history' : '/login'} compact />
     </View>
     <View style={[common.row, { marginTop: 22, gap: 7 }]}><Icon name="hard-drive" size={12} /><Text style={[common.muted, { fontSize: 10 }]}>Device storage · not cloud synced</Text></View>
   </View>;

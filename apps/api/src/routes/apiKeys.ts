@@ -11,7 +11,8 @@ import { parseBody } from './util.ts';
 export async function apiKeyRoutes(app: FastifyInstance, ctx: AppContext) {
   app.post('/v1/api-keys', async (req, reply) => {
     const auth = requireAuth(req);
-    if (auth.via !== 'cookie') throw new ApiError(403, 'forbidden', 'API keys are managed from a dashboard session');
+    if (auth.via === 'apikey' || !auth.userId)
+      throw new ApiError(403, 'forbidden', 'API keys are managed from a dashboard session');
     const body = parseBody(createApiKeySchema, req.body);
     const generated = generateApiKey();
     const key = await new ApiKeyRepo(ctx.pool, auth.tenantId).create({

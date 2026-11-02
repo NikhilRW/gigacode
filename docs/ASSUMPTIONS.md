@@ -19,8 +19,9 @@
 
 ### Repository and tooling
 
-- The pnpm workspace excludes `apps/expo`, an earlier mobile prototype that uses Bun and is deprioritized. The web
-  dashboard is `apps/web`.
+- The pnpm workspace excludes `apps/expo`, the separately installed Bun-based Android/iOS/web client. The original
+  web dashboard is `apps/web`. Expo uses the same backend through native user Bearer sessions; see
+  [CODESPACES.md](CODESPACES.md) for device setup.
 - The dev host runs Node 22; the images run Node 20 LTS (`node:20-bookworm-slim`). TypeScript runs through `tsx`, in
   dev and in the images.
 - Docker Hub no longer serves `minio/minio`, so compose uses `cgr.dev/chainguard/minio:latest`. It is unpinned

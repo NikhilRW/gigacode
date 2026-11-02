@@ -1,0 +1,32 @@
+# Always merge AFTER infra/docker-compose.yml. Compose >=2.24.4 is required.
+# !override is intentional: an ordinary [] would retain base published ports.
+services:
+  postgres:
+    ports: !override []
+  redis:
+    ports: !override []
+  minio:
+    ports: !override []
+  migrate:
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?Run node .devcontainer/setup.mjs}
+      WORKER_DB_PASSWORD: ${WORKER_DB_PASSWORD:?Run node .devcontainer/setup.mjs}
+  api:
+    ports: !override ['127.0.0.1:3000:3000']
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?Run node .devcontainer/setup.mjs}
+      WEB_ORIGIN: ${CODESPACES_WEB_ORIGIN:?Run node .devcontainer/setup.mjs}
+      COOKIE_SECURE: 'true'
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?Run node .devcontainer/setup.mjs}
+      SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:?Run node .devcontainer/setup.mjs}
+  worker:
+    # Never silently replace nsjail or grant the worker a Docker socket.
+    privileged: true
+    cgroup: private
+    environment:
+      SANDBOX_DRIVER: nsjail
+      WORKER_DATABASE_URL: postgres://worker_login:${WORKER_DB_PASSWORD:?Run node .devcontainer/setup.mjs}@postgres:5432/engine
+      WORKER_SLOTS: '1'
+  web:
+    profiles: ['dashboard']
+    ports: !override []

@@ -19,7 +19,7 @@ export function Button({ label, icon, onPress, href, variant = 'secondary', disa
   const primary = variant === 'primary';
   const element = (
     <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? label} accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)}
-      style={StyleSheet.flatten([styles.button, primary ? styles.primary : variant === 'ghost' ? styles.ghost : styles.secondary, compact && { paddingLeft: 13, paddingRight: 13, minHeight: 38 }, hovered && { opacity: 0.9, borderColor: colors.accent }, pressed && { opacity: 0.65 }, disabled && { opacity: 0.4 }, style])}>
+      style={StyleSheet.flatten([styles.button, primary ? styles.primary : variant === 'ghost' ? styles.ghost : styles.secondary, compact && { paddingLeft: 13, paddingRight: 13 }, hovered && { opacity: 0.9, borderColor: colors.accent }, pressed && { opacity: 0.65 }, disabled && { opacity: 0.4 }, style])}>
       <View style={styles.buttonContent}>
         {icon && <Icon name={icon} size={15} color={primary ? colors.onPrimary : colors.text} />}
         <Text numberOfLines={1} style={[styles.buttonText, primary && { color: colors.onPrimary }]}>{label}</Text>

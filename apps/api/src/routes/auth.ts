@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { hash, verify } from '@node-rs/argon2';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import { changePasswordSchema, loginSchema, registerSchema, updateProfileSchema, type Me } from '@engine/shared';
 import { AuthRepo, toTenantLimits, withTx, type UserRow } from '@engine/db';
 import type { AppContext } from '../context.ts';
 import { ApiError, unauthorized } from '../errors.ts';
-import { clearSession, issueSession, requireAuth } from '../auth/session.ts';
+import { clearSession, issueNativeSession, issueSession, requireAuth } from '../auth/session.ts';
 import { parseBody } from './util.ts';
 
 // algorithm 2 = Argon2id (const enum in @node-rs/argon2, not importable under isolatedModules)
@@ -13,7 +13,9 @@ const ARGON = { algorithm: 2 as const, memoryCost: 19456, timeCost: 2, paralleli
 // Verified against when the email is unknown, so response time does not reveal accounts.
 const DUMMY_HASH_PROMISE = hash('not-a-real-password-0000', ARGON);
 
-async function buildMe(ctx: AppContext, user: Pick<UserRow, 'id' | 'email' | 'name' | 'role' | 'tenant_id'>, csrf: string): Promise<Me> {
+type AccountUser = Pick<UserRow, 'id' | 'email' | 'name' | 'role' | 'tenant_id'>;
+
+async function buildMe(ctx: AppContext, user: AccountUser, csrf: string): Promise<Me> {
   const tenant = await new AuthRepo(ctx.pool).findTenant(user.tenant_id);
   if (!tenant) throw unauthorized();
   return {
@@ -24,43 +26,62 @@ async function buildMe(ctx: AppContext, user: Pick<UserRow, 'id' | 'email' | 'na
   };
 }
 
-export async function authRoutes(app: FastifyInstance, ctx: AppContext) {
-  app.post('/v1/auth/register', async (req, reply) => {
-    const body = parseBody(registerSchema, req.body);
-    const repo = new AuthRepo(ctx.pool);
-    if (await repo.findUserByEmail(body.email)) throw new ApiError(409, 'email_taken', 'email already registered');
-    const passwordHash = await hash(body.password, ARGON);
-    const tenantId = randomUUID();
-    const userId = randomUUID();
-    try {
-      await withTx(ctx.pool, (client) =>
-        new AuthRepo(client).createTenantWithOwner({
-          tenantId,
-          tenantName: body.tenantName,
-          userId,
-          email: body.email,
-          name: body.name,
-          passwordHash,
-        }),
-      );
-    } catch (err) {
-      if ((err as { code?: string }).code === '23505') throw new ApiError(409, 'email_taken', 'email already registered');
-      throw err;
-    }
-    const csrf = issueSession(ctx, reply, { id: userId, tenantId, role: 'owner' });
-    req.log.info({ tenantId, userId }, 'tenant registered');
-    reply.code(201);
-    return buildMe(ctx, { id: userId, email: body.email.toLowerCase(), name: body.name ?? null, role: 'owner', tenant_id: tenantId }, csrf);
-  });
+async function registerAccount(ctx: AppContext, input: unknown): Promise<AccountUser> {
+  const body = parseBody(registerSchema, input);
+  const repo = new AuthRepo(ctx.pool);
+  if (await repo.findUserByEmail(body.email)) throw new ApiError(409, 'email_taken', 'email already registered');
+  const passwordHash = await hash(body.password, ARGON);
+  const tenantId = randomUUID();
+  const userId = randomUUID();
+  try {
+    await withTx(ctx.pool, (client) =>
+      new AuthRepo(client).createTenantWithOwner({
+        tenantId,
+        tenantName: body.tenantName,
+        userId,
+        email: body.email,
+        name: body.name,
+        passwordHash,
+      }),
+    );
+  } catch (err) {
+    if ((err as { code?: string }).code === '23505') throw new ApiError(409, 'email_taken', 'email already registered');
+    throw err;
+  }
+  return { id: userId, email: body.email.toLowerCase(), name: body.name ?? null, role: 'owner', tenant_id: tenantId };
+}
 
-  app.post('/v1/auth/login', async (req, reply) => {
-    const body = parseBody(loginSchema, req.body);
-    const user = await new AuthRepo(ctx.pool).findUserByEmail(body.email);
-    const ok = user ? await verify(user.password_hash, body.password) : (await verify(await DUMMY_HASH_PROMISE, body.password), false);
-    if (!user || !ok) throw new ApiError(401, 'invalid_credentials', 'invalid email or password');
+async function loginAccount(ctx: AppContext, input: unknown): Promise<AccountUser> {
+  const body = parseBody(loginSchema, input);
+  const user = await new AuthRepo(ctx.pool).findUserByEmail(body.email);
+  const ok = user ? await verify(user.password_hash, body.password) : (await verify(await DUMMY_HASH_PROMISE, body.password), false);
+  if (!user || !ok) throw new ApiError(401, 'invalid_credentials', 'invalid email or password');
+  return user;
+}
+
+export async function authRoutes(app: FastifyInstance, ctx: AppContext) {
+  async function respondWithSession(reply: FastifyReply, user: AccountUser, mode: 'cookie' | 'native') {
+    if (mode === 'native') {
+      reply.header('Cache-Control', 'no-store');
+      return {
+        ...(await buildMe(ctx, user, '')),
+        ...issueNativeSession(ctx, { id: user.id, tenantId: user.tenant_id, role: user.role }),
+      };
+    }
     const csrf = issueSession(ctx, reply, { id: user.id, tenantId: user.tenant_id, role: user.role });
     return buildMe(ctx, user, csrf);
-  });
+  }
+
+  for (const mode of ['cookie', 'native'] as const) {
+    const base = mode === 'native' ? '/v1/auth/native' : '/v1/auth';
+    app.post(`${base}/register`, async (req, reply) => {
+      const user = await registerAccount(ctx, req.body);
+      req.log.info({ tenantId: user.tenant_id, userId: user.id }, 'tenant registered');
+      reply.code(201);
+      return respondWithSession(reply, user, mode);
+    });
+    app.post(`${base}/login`, async (req, reply) => respondWithSession(reply, await loginAccount(ctx, req.body), mode));
+  }
 
   app.post('/v1/auth/logout', async (req, reply) => {
     if (req.auth) requireAuth(req);
@@ -86,10 +107,11 @@ export async function authRoutes(app: FastifyInstance, ctx: AppContext) {
     } satisfies Me;
   });
 
-  /** Profile and password changes need a dashboard session; API keys have no user. */
+  /** Profile and password changes need a cookie or native user session; API keys have no user. */
   function sessionUserId(req: Parameters<typeof requireAuth>[0]): { userId: string; tenantId: string; csrf: string } {
     const auth = requireAuth(req);
-    if (!auth.userId) throw new ApiError(403, 'session_required', 'this action requires a signed-in dashboard session');
+    if (auth.via === 'apikey' || !auth.userId)
+      throw new ApiError(403, 'session_required', 'this action requires a signed-in dashboard session');
     return { userId: auth.userId, tenantId: auth.tenantId, csrf: auth.csrf };
   }
 

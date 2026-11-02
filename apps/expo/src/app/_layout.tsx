@@ -4,6 +4,7 @@ import { useFonts, SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DraftProvider } from '@/state/DraftProvider';
 import { ThemeProvider, useTheme } from '@/state/ThemeProvider';
+import { AuthProvider } from '@/state/AuthProvider';
 
 export default function RootLayout() {
   useFonts({ SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold });
@@ -16,8 +17,8 @@ export default function RootLayout() {
 
 function ThemedRoutes() {
   const { colors, mode } = useTheme();
-  return <DraftProvider>
+  return <AuthProvider><DraftProvider>
     <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg }, animation: 'fade' }} />
-  </DraftProvider>;
+  </DraftProvider></AuthProvider>;
 }

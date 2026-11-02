@@ -1,8 +1,10 @@
 # Milestones
 
 Maps to Build-spec §17. A milestone is **done** only when its "done when" check has actually been run and passed.
-Priority is the web app working end to end with the backend. The Expo mobile app (`apps/expo`) is deprioritized and
-excluded from the pnpm workspace. Evidence for every ✅ is in [TEST_REPORT.md](TEST_REPORT.md).
+The original milestones below track the web app and backend. The Expo Android/iOS/web port (`apps/expo`)
+is installed separately with Bun; device and Codespaces setup is in [CODESPACES.md](CODESPACES.md).
+These existing milestone checks do not establish physical-device or Codespaces runtime verification.
+Evidence for every ✅ below is in [TEST_REPORT.md](TEST_REPORT.md).
 
 | # | Milestone | Done when | Status |
 |---|---|---|---|

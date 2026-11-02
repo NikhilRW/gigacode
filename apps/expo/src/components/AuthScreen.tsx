@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 import { Brand, Button, Icon, Notice, Pill, ThemeToggle } from './ui';
 import { Orbit } from './Orbit';
-import { loginSchema, requireAccountService, signupSchema } from '@/lib/auth';
+import { loginSchema, signupSchema } from '@/lib/auth';
+import { useAuth } from '@/state/AuthProvider';
+import { describeError } from '@/lib/client';
 import { font, type Colors } from '@/theme';
 import { useStyles, useTheme } from '@/state/ThemeProvider';
 
@@ -15,6 +17,7 @@ type Values = z.infer<typeof signupSchema>;
 export function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
   const { colors, common } = useTheme();
   const styles = useStyles(createStyles);
+  const auth = useAuth();
   const signup = mode === 'signup';
   const { width } = useWindowDimensions();
   const wide = width >= 1000;
@@ -23,17 +26,19 @@ export function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
   const [connectionError, setConnectionError] = useState('');
   const [focused, setFocused] = useState<string | null>(null);
   const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<Values>({
-    resolver: zodResolver(signup ? signupSchema : loginSchema.extend({ name: z.string() })),
-    defaultValues: { name: '', email: '', password: '' },
+    resolver: zodResolver(signup ? signupSchema : loginSchema.extend({ name: z.string(), tenantName: z.string() })),
+    defaultValues: { name: '', tenantName: '', email: '', password: '' },
   });
-  const submit = handleSubmit(async () => {
+  const submit = handleSubmit(async values => {
     setConnectionError('');
-    try { await requireAccountService(); } catch (error) { setConnectionError(error instanceof Error ? error.message : 'Account service unavailable. Please keep using device drafts.'); }
+    try { await auth.login(signup ? values : { email: values.email.trim(), password: values.password }, signup); router.replace('/dashboard'); }
+    catch (error) { setConnectionError(describeError(error)); }
   });
   const fields: { name: keyof Values; label: string; placeholder: string; icon: 'user' | 'mail' | 'lock' }[] = [
     ...(signup ? [{ name: 'name' as const, label: 'Your name', placeholder: 'Ada Lovelace', icon: 'user' as const }] : []),
+    ...(signup ? [{ name: 'tenantName' as const, label: 'Workspace name', placeholder: 'My workspace', icon: 'user' as const }] : []),
     { name: 'email', label: 'Email address', placeholder: 'you@youruniverse.com', icon: 'mail' },
-    { name: 'password', label: 'Password', placeholder: signup ? 'At least 8 characters' : 'Your password', icon: 'lock' },
+    { name: 'password', label: 'Password', placeholder: signup ? 'At least 10 characters' : 'Your password', icon: 'lock' },
   ];
   return <SafeAreaView style={styles.safe}>
     <Stack.Screen options={{ title: signup ? 'Create your account — GigaCode' : 'Welcome back — GigaCode' }} />
@@ -54,7 +59,8 @@ export function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
                 <View style={common.row}><View style={styles.stepLine} /><Text style={common.eyebrow}>{signup ? 'YOUR NEXT CHAPTER' : 'RIGHT WHERE YOU LEFT OFF'}</Text></View>
                 <Text accessibilityRole="header" style={[styles.title, compact && { fontSize: 37, lineHeight: 43 }]}>{signup ? 'Hello, possibility.' : 'Welcome back.'}</Text>
                 <Text style={[common.muted, { fontSize: 14, lineHeight: 23, marginTop: 12, marginBottom: 24 }]}>{signup ? 'A home for your code. A little space to think big.' : 'Good ideas deserve another line. Let’s keep going.'}</Text>
-                <View style={styles.connectionLabel}><Icon name="radio" size={13} color={colors.accent} /><Text style={styles.connectionText}>UI preview · account service not connected</Text></View>
+                <View style={styles.connectionLabel}><Icon name="radio" size={13} color={colors.accent} /><Text style={styles.connectionText}>{auth.baseUrl || 'Set your API server before signing in'}</Text></View>
+                <Button label="Connection settings" href="/connection" variant="ghost" compact />
                 <View style={{ gap: 20, marginTop: 25 }}>
                   {fields.map(field => <View key={field.name} style={{ gap: 9 }}>
                     <Text nativeID={`${field.name}-label`} style={styles.label}>{field.label}</Text>
@@ -62,16 +68,16 @@ export function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
                       <Icon name={field.icon} size={16} color={focused === field.name ? colors.accent : colors.faint} />
                       <TextInput accessibilityLabel={field.label} accessibilityLabelledBy={`${field.name}-label`} value={value} onChangeText={onChange} onFocus={() => setFocused(field.name)} onBlur={() => { onBlur(); setFocused(null); }} placeholder={field.placeholder} placeholderTextColor={colors.faint} style={styles.input}
                         autoCapitalize={field.name === 'name' ? 'words' : 'none'} autoCorrect={false} keyboardType={field.name === 'email' ? 'email-address' : 'default'} secureTextEntry={field.name === 'password' && !showPassword}
-                        autoComplete={field.name === 'password' ? signup ? 'new-password' : 'current-password' : field.name === 'name' ? 'name' : 'email'}
+                        autoComplete={field.name === 'password' ? signup ? 'new-password' : 'current-password' : field.name === 'name' ? 'name' : field.name === 'email' ? 'email' : 'off'}
                         returnKeyType={field.name === 'password' ? 'go' : 'next'} onSubmitEditing={field.name === 'password' ? () => { void submit(); } : undefined} />
                       {field.name === 'password' && <Pressable accessibilityRole="button" accessibilityLabel={showPassword ? 'Hide password' : 'Show password'} onPress={() => setShowPassword(value => !value)} style={styles.reveal}><Icon name={showPassword ? 'eye-off' : 'eye'} size={17} /></Pressable>}
                     </View>} />
                     {errors[field.name] && <Text accessibilityRole="alert" style={styles.error}>{errors[field.name]?.message}</Text>}
                   </View>)}
                 </View>
-                {signup && <Text style={[common.muted, { fontSize: 11, lineHeight: 18, marginTop: 14 }]}>Use a unique password. This preview never transmits or stores your credentials.</Text>}
+                <Text style={[common.muted, { fontSize: 11, lineHeight: 18, marginTop: 14 }]}>Credentials are sent only to your configured API. Passwords are never stored on this device. Native sessions use secure storage; browser sessions use sessionStorage.</Text>
                 <View style={{ marginTop: 26, gap: 14 }}>
-                  <Button label={isSubmitting ? 'Checking availability…' : signup ? 'Create your account' : 'Sign in to GigaCode'} icon={isSubmitting ? undefined : 'arrow-right'} variant="primary" onPress={() => { void submit(); }} disabled={isSubmitting} style={{ minHeight: 51 }} />
+                  <Button label={isSubmitting ? 'Signing in…' : signup ? 'Create your account' : 'Sign in to GigaCode'} icon={isSubmitting ? undefined : 'arrow-right'} variant="primary" onPress={() => { void submit(); }} disabled={isSubmitting || !auth.ready || !auth.baseUrl} style={{ minHeight: 51 }} />
                   {isSubmitting && <ActivityIndicator accessibilityLabel="Checking account service" color={colors.accent} />}
                   {!!connectionError && <Notice>{connectionError}</Notice>}
                 </View>
@@ -107,7 +113,7 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   connectionText: { fontFamily: font.regular, fontSize: 10, color: colors.accent, flexShrink: 1 },
   label: { fontFamily: font.medium, color: colors.text, fontSize: 12 },
   field: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 13, borderWidth: 1, borderColor: colors.strongBorder, backgroundColor: colors.panel, minHeight: 53, paddingLeft: 15, paddingRight: 4 },
-  input: { flex: 1, minWidth: 0, paddingVertical: 15, fontFamily: font.regular, color: colors.text, fontSize: 13, outlineWidth: 0 },
+  input: { flex: 1, minWidth: 0, paddingVertical: 15, fontFamily: font.regular, color: colors.text, fontSize: 16, outlineWidth: 0 },
   reveal: { minWidth: 44, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   error: { fontFamily: font.regular, fontSize: 11, color: colors.error, lineHeight: 17 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 22 },

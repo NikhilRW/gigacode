@@ -1,45 +1,85 @@
-# UI architecture & research
+# Universal client architecture
 
 ## Design
 
-GigaCode uses ink-navy surfaces, electric azure actions, icy cyan highlights and restrained glows in dark mode; light mode uses an ice-blue canvas, white chrome, navy text and darker blue actions. Shared semantic palettes live in `src/lib/palette.ts`, including syntax colors. `ThemeProvider` hydrates the persisted preference before showing route content, defaults to dark, survives navigation, and applies page background/color-scheme without reading browser globals during SSR. CodeMirror receives the mode as a serializable prop and reconfigures theme/highlight extensions live rather than remounting or inverting the editor.
+The existing Expo theme remains the design source: `src/lib/palette.ts`, `src/theme.ts`, and
+`src/state/ThemeProvider.tsx`. Ink-navy surfaces, azure actions, cyan accents, Space Grotesk, rounded
+panels and the static Orbit artwork are retained. Light mode uses ice-blue surfaces, white chrome
+and navy text. The same semantic colors drive editor syntax and completion menus.
 
-Space Grotesk typography, rounded layered editor chrome and a static refractive blue lens keep the workspace cinematic without obstructing the code. Mobile web replaces the Files sidebar with a modal sheet and stacks editor/output; authentication becomes a single keyboard-aware column. All lens artwork is static and hidden from accessibility tools. The universal architecture remains intact; this iteration deliberately focuses on browser design and verification, not native builds.
+## Native/browser boundary
 
-## Boundaries and packages
+Expo Router routes in `src/app/` use React Native views, safe areas, keyboard avoidance, forms,
+navigation and themed reusable components. They adapt from phones to tablets/desktop and landscape.
 
-- **Expo Router / React Native:** native navigation, safe areas, keyboard avoidance, forms, buttons, file library, and output. No web-only shell or parallel mobile UI.
-- **`@uiw/react-codemirror` + `@codemirror/lang-python`:** mature editor behavior, parser-backed highlighting, indentation, built-in globals (including `print`), local variables, and snippets. `python()` registers both local and global completion sources; there is deliberately no hand-maintained completion dictionary. The button uses CodeMirror's `startCompletion` for touch access. Cmd/Ctrl shortcuts use CodeMirror keymaps.
-- **Expo DOM component:** only `PythonEditor.tsx` begins with `'use dom'`. Web renders it directly; iOS/Android embed its bundle. SDK 57 uses the built-in `@expo/dom-webview`, so no additional native WebView dependency is needed. Explicit parent height and `dom.style.flex` size it on native. Props are serializable; function props are top-level async actions. File IDs accompany editor changes to protect against a delayed bridge event editing the newly selected file. CodeMirror mounts after hydration.
-- **AsyncStorage:** working guest persistence without inventing an auth backend. A versioned Zod schema validates restored data; invalid data is not overwritten. The root provider survives route changes. Debounced autosave plus explicit Save share an ordered write queue to prevent stale writes. Save feedback is only shown after the storage promise resolves. Storage errors keep the in-memory edits and offer retry. If opening storage fails, editing is locked to avoid replacing existing data.
-- **React Hook Form / Zod / resolvers:** cross-platform controlled inputs and shared validation. Sign-up password requirements are not imposed on sign-in. Credentials are never sent, logged, or persisted. The async service guard always rejects clearly; no fake session is produced.
-- **Expo LinearGradient / vector icons / bundled Google font:** lightweight native-compatible visual primitives; no runtime font CDN or animation loop.
+**Only `src/components/CodeEditor.tsx` has `'use dom'`.** CodeMirror and its language/view packages
+need a browser; they are not imported by the native screens as native UI. Expo replaces the DOM
+component with a native wrapper and bundles its browser code separately. SDK 57 uses
+`@expo/dom-webview` by default. On web the same editor renders directly into the page.
 
-## Honest offline behavior
+Editor props are JSON-serializable. Top-level callbacks are asynchronous native actions. File IDs
+travel with changes so delayed events cannot edit a different selected file. The editor owns its live
+document rather than echoing asynchronous native text updates back over new keystrokes. Native Run/Save
+uses `useDOMImperativeHandle` to request the current document and waits for a native-action reply
+before taking a draft snapshot. Native imperative calls are one-way, so `useEditorBridge` correlates
+replies by request ID, times out missing replies and cancels pending requests on editor replacement. Theme and
+font updates reconfigure the existing editor without losing its document. File selection remounts it.
 
-There is no Python interpreter, execution API, token store, or simulated network latency in this UI. Run creates a timestamped local explanation, not a Python result. There is no Stop button because there is no running request. Cloud Save is represented by the signed-out cloud-files panel and sign-in navigation, not a pretend save. Guest saves are explicitly device-local. The screen continues to offer guest editing while account services are absent.
+The native focus layout is flex-sized above the software keyboard, with an internal editor scroller
+and horizontal touch toolbar. The regular page uses explicit editor dimensions inside a page scroller.
+Completion is a curated set of snippets/builtins plus identifiers from the document; there is no
+language-server connection, remote package installation, or AI completion claim.
 
-## Future Python boundary (proposal, not an implemented API)
+## State and network
 
-Keep backend implementation separate from the DOM editor. Choose the actual auth/session and execution sandbox design before wiring these client interactions:
+- **DraftProvider:** versioned local files, per-language entry points, stdin and run/editor settings.
+  It reads old Python drafts with defaults, preserves other languages when switching, and serializes
+  autosave/manual writes. Failed hydration does not overwrite stored work.
+- **AuthProvider:** restores the API origin and a matching session, verifies `/v1/me`, manages expiry,
+  and prevents old-session responses from overwriting a changed connection. Credential writes are
+  serialized. Logout/server changes clear account state without deleting drafts.
+- **SecureStore:** encrypted/keychain-backed credentials on Android/iOS. Web uses sessionStorage;
+  server/API-key secrets are not embedded in the app or passed into the DOM editor.
+- **ApiClient:** normalizes origins, attaches a user Bearer token only to its matching origin,
+  omits cookies, aborts timed-out requests, and surfaces structured errors. Public authentication
+  requests do not attach a stale credential. Codespaces proxy HTML is not accepted as a session.
+- **useResource/useLiveRun:** focus/foreground-only, single-flight polling with cancellation and stale
+  response guards. Terminal execution polling stops. Logs are inline API responses; S3 does not need
+  public forwarding. There is no simulated execution or offline account-data cache.
 
-| Proposed endpoint | Purpose / response |
-| --- | --- |
-| `POST /auth/signup` | Validated account creation; verification status, no assumed session |
-| `POST /auth/login`, `GET /auth/me`, `POST /auth/logout` | Real session lifecycle; secure platform-appropriate session handling |
-| `GET /files`, `POST /files`, `PATCH /files/:id` | Authenticated, user-scoped cloud Python files; stable ID, filename, code, revision, timestamps |
-| `POST /executions` | Submit code to a separately sandboxed Python worker; execution ID / status |
-| `GET /executions/:id`, `DELETE /executions/:id` | Bounded stdout/stderr, exit status, timeout, and actual cancellation |
+## Backend addition
 
-When implemented, add a client adapter configured by `EXPO_PUBLIC_API_URL` (never secrets), response validation, abort/timeouts, typed HTTP errors, and a real loading/cancellation state. Use authenticated authorization for cloud files; do not silently upload local drafts. Never execute arbitrary Python inside the API process. This release deliberately does **not** consume that environment variable or send credentials to a configurable unverified endpoint.
+Native login and registration share account validation/password handling with browser login. Native
+session JWTs have a distinct prefix, audience and type, are HS256-verified and schema-validated, and
+cannot be interchanged with cookie tokens. Native real-user sessions can manage profiles/passwords
+and create API keys; API-key callers still cannot perform user-session-only actions. Browser cookie
+mutations retain CSRF protection. Token lifetime is seven days, with local sign-out and no new
+server-side revocation system.
 
-## Research sources checked for this implementation
+## Deployment
 
-- [Expo SDK 57 reference](https://docs.expo.dev/versions/v57.0.0/) — React Native / React versions and SDK-compatible package installation.
-- [Expo documentation index](https://docs.expo.dev/llms.txt) — current API/documentation entry points.
-- [Using React DOM in Expo native apps](https://docs.expo.dev/guides/dom-components/) (updated September 29, 2026) — SDK 56+ bundled WebView, async native actions, serialization, manual sizing, Expo Go support.
-- [CodeMirror Python language source](https://github.com/codemirror/lang-python/blob/main/src/python.ts) — verified `python()` registers `localCompletionSource` and `globalCompletion`.
+The Expo app has its own `bun.lock` and is installed from `apps/expo`. Backend packages retain their
+pnpm workspace. `app.json` enables tablets, landscape, Android keyboard resize and SecureStore;
+`eas.json` defines device development/preview and production profiles. EAS ownership and signing remain
+configured through the user's account.
 
-## Verification scope
+`.devcontainer/` and `infra/docker-compose.codespaces.yml` prepare the development backend and forwarded
+API origin. The nsjail worker still requires cgroup v2 delegation and Linux namespaces. Codespaces
+capabilities must be established by the existing worker startup self-test and a real completed run;
+API readiness by itself does not establish execution capability. See `docs/CODESPACES.md`.
 
-Unit tests target validation, versioned draft restoration, filename rules, write ordering, storage retry, the unavailable account boundary, theme preference decoding and WCAG normal-text contrast for both palettes. `scripts/review-web.mts` uses development-only Playwright under Node (for reliable browser child-process handling on Windows) to check both modes at 390/768/1024/1440px, live syntax/cursor changes, suggestions, file operations, auth validation/offline notices, reload/route persistence, browser runtime errors and overflow. `bun run build` exports web only. No native build/export or device validation is included in this iteration. Before a future native release, test the editor's touch suggestions and soft-keyboard sizing on both iOS and Android; configure production icons, auth, and a sandboxed execution backend separately.
+## Research and verification boundary
+
+Official references consulted on 2026-11-02:
+
+- [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/) — SDK/React Native/Node requirements.
+- [Expo DOM components](https://docs.expo.dev/guides/dom-components/) — SDK 56+ built-in WebView,
+  separate JS engines, async native actions, imperative handles and native exports.
+- [CodeMirror system guide](https://codemirror.net/docs/guide/) — DOM-dependent view and state model.
+- [Keyboard handling](https://docs.expo.dev/guides/keyboard-handling/) — native keyboard avoidance.
+- [SecureStore SDK 57](https://docs.expo.dev/versions/v57.0.0/sdk/securestore/) — native credential storage.
+- [EAS configuration](https://docs.expo.dev/build/eas-json/) — device build profiles.
+
+Lint, TypeScript and platform exports can establish source/bundling compatibility. They cannot prove
+physical-device IME/selection/keyboard behavior, signed EAS builds, tunnel reachability, or a live
+Codespaces sandbox. Those need the user's device/account/runtime environment.
