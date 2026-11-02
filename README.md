@@ -5,7 +5,8 @@ web dashboard or a REST API. A worker runs it inside a Linux sandbox and returns
 memory use.
 
 - Jobs are queued in Postgres and run by workers inside **nsjail** sandboxes: Linux namespaces, cgroup v2, a
-  seccomp-bpf allowlist, rlimits and no network.
+  seccomp-bpf allowlist, rlimits and network disabled by default. A per-run Internet toggle enables public
+  outbound TCP/UDP with a per-UID destination firewall; private/local destinations remain blocked.
 - Source and results are stored in S3. Postgres holds metadata only.
 - The dashboard shows live progress and explains failures in plain words (timeout, out of memory, compile error).
 - Workers can crash or lose their connection mid-run; the platform detects it and retries safely.
@@ -25,6 +26,7 @@ trusted computing base. See [docs/SECURITY.md](docs/SECURITY.md).
 ## Setup guide
 
 For a cloud development runner and Expo Android/iOS device setup, see [GitHub Codespaces](docs/CODESPACES.md).
+For downloadable iOS IPAs from GitHub Actions and a local POCO X4 ARM64 APK, see [Native builds](docs/NATIVE_BUILDS.md).
 
 ### 1. What you need
 

@@ -60,6 +60,7 @@
     "typecheck": "tsc --noEmit",
     "build": "expo export --platform web",
     "build:native": "expo export --platform ios --platform android --output-dir .expo/export-native",
+    "apk:arm64": "pwsh -NoProfile -File ./scripts/build-android.ps1",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",

@@ -97,7 +97,7 @@ export function buildOpenApi() {
       '/v1/api-keys/{id}': { delete: op({ summary: 'Revoke API key', status: 204 }) },
       '/v1/executions': {
         get: op({ summary: 'List executions (cursor paginated)', response: 'ExecutionList' }),
-        post: op({ summary: 'Submit code (optional Idempotency-Key header)', body: 'CreateExecution', status: 202 }),
+        post: op({ summary: 'Submit code (network defaults to false; optional Idempotency-Key header)', body: 'CreateExecution', status: 202 }),
       },
       '/v1/executions/{id}': { get: op({ summary: 'Execution metadata, events, attempts', response: 'ExecutionDetail' }) },
       '/v1/executions/{id}/source': { get: op({ summary: 'Submitted files and stdin' }) },

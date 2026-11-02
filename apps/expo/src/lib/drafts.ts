@@ -12,6 +12,11 @@ export const librarySchema = z.object({
   language: z.enum(['python', 'node', 'c', 'cpp']).default('python'),
   entries: z.object({ python: z.string().optional(), node: z.string().optional(), c: z.string().optional(), cpp: z.string().optional() }).default({}),
   stdin: z.string().default(''), timeoutMs: z.number().int().positive().default(5000), memoryMb: z.number().int().positive().default(256), fontSize: z.number().min(14).max(26).default(17),
+  cpuMsPerSec: z.number().int().min(1).max(1000).default(1000),
+  pids: z.number().int().min(1).max(64).default(64),
+  advancedSettings: z.boolean().default(false),
+  showUsage: z.boolean().default(true),
+  network: z.boolean().default(false),
 });
 export type Draft = z.infer<typeof draftSchema>;
 export type Library = z.infer<typeof librarySchema>;
@@ -67,8 +72,13 @@ export function executionSource(library: Library, limits: TenantLimits): Source 
   const bytes = (text: string) => new TextEncoder().encode(text).length;
   if (files.reduce((total, file) => total + bytes(file.code), 0) > limits.maxSourceBytes) throw new Error('Source exceeds your tenant source-size limit.');
   if (bytes(library.stdin) > 256 * 1024) throw new Error('Standard input must be at most 256 KiB.');
-  return { language: library.language, entryFile: entry.name, files: files.map(file => ({ path: file.name, content: file.code })), stdin: library.stdin,
-    limits: { timeoutMs: Math.max(100, Math.min(library.timeoutMs, limits.maxTimeoutMs, 10000)), memoryMb: Math.max(16, Math.min(library.memoryMb, limits.maxMemoryMb, 512)) } };
+  return { language: library.language, entryFile: entry.name, files: files.map(file => ({ path: file.name, content: file.code })), stdin: library.stdin, network: library.network,
+    limits: {
+      timeoutMs: Math.max(100, Math.min(library.timeoutMs, limits.maxTimeoutMs, 10000)),
+      memoryMb: Math.max(16, Math.min(library.memoryMb, limits.maxMemoryMb, 512)),
+      cpuMsPerSec: Math.max(1, Math.min(library.cpuMsPerSec, 1000)),
+      pids: Math.max(1, Math.min(library.pids, 64)),
+    } };
 }
 
 // A single write queue prevents an older autosave from finishing after a newer manual save.

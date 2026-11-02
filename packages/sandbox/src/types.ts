@@ -29,8 +29,8 @@ export interface SandboxSpec {
    * concurrent runs never share a kernel uid (rlimits, signals, file ownership).
    */
   hostUid: number;
-  /** Always false. Present so the contract is explicit. */
-  network: false;
+  /** Opt-in outbound public TCP/UDP, guarded by the nsjail driver's per-UID firewall. */
+  network: boolean;
 }
 
 export interface SandboxResult {

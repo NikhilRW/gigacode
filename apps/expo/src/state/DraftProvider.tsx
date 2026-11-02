@@ -9,7 +9,7 @@ type DraftContext = {
   edit: (id: string, code: string) => void; open: (id: string) => void;
   create: (name: string) => void; rename: (name: string) => void;
   remove: (id: string) => void; setLanguage: (language: Language) => void; setEntry: (id: string) => void;
-  configure: (patch: Partial<Pick<Library, 'stdin' | 'timeoutMs' | 'memoryMb' | 'fontSize'>>) => void;
+  configure: (patch: Partial<Pick<Library, 'stdin' | 'timeoutMs' | 'memoryMb' | 'fontSize' | 'cpuMsPerSec' | 'pids' | 'advancedSettings' | 'showUsage' | 'network'>>) => void;
   snapshot: () => Library;
   save: () => Promise<void>; retry: () => void;
 };

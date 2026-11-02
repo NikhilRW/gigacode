@@ -99,7 +99,8 @@ export function ExecutionDetailPage() {
         files: src.files,
         entryFile: src.entryFile,
         stdin: src.stdin,
-        limits: { timeoutMs: src.limits.timeoutMs, memoryMb: src.limits.memoryMb },
+        network: src.network === true,
+        limits: src.limits,
       });
     },
     onSuccess: (r) => {

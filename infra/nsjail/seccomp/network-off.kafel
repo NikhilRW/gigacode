@@ -1,0 +1,4 @@
+/* Offline remains the default: no sockets, plus a fresh empty network namespace. */
+POLICY network_access {
+  ERRNO(1) { socket, socketpair }
+}

@@ -13,6 +13,8 @@ export const s3Keys = {
 
 /** Written last by the API; its presence means the source upload completed. */
 export interface SourceManifest {
+  /** Missing on older submissions means network access is disabled. */
+  network?: boolean;
   files: { path: string; bytes: number; sha256: string }[];
   stdin: { bytes: number; sha256: string };
 }

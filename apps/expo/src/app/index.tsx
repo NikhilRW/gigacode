@@ -8,8 +8,9 @@ import { FilesPanel } from '@/components/FilesPanel';
 import { FileNameModal } from '@/components/FileNameModal';
 import CodeEditor from '@/components/CodeEditor';
 import { useEditorBridge } from '@/lib/useEditorBridge';
-import { Field, FlowRow, Navigation, ResourceState } from '@/components/AppScreen';
+import { FlowRow, Navigation, ResourceState } from '@/components/AppScreen';
 import { RunOutput } from '@/components/RunOutput';
+import { RunSettings } from '@/components/RunSettings';
 import { useAuth } from '@/state/AuthProvider';
 import { describeError } from '@/lib/client';
 import { executionSource } from '@/lib/drafts';
@@ -174,12 +175,7 @@ function WorkspaceContent() {
           </View>
           {!!runError && <View style={{ gap: 10, marginTop: 14 }}><Notice>{runError}</Notice>{runError.startsWith('To delete') && <FlowRow><Button label={`Confirm delete ${file.name}`} onPress={() => { try { drafts.remove(file.id); setRunError(''); } catch (err) { setRunError(describeError(err)); } }} /><Button label="Keep file" onPress={() => setRunError('')} /></FlowRow>}</View>}
           {auth.error && <Notice>{auth.error}</Notice>}
-          <View style={{ gap: 14, marginTop: 20, padding: 18, borderRadius: 18, borderWidth: 1, borderColor: colors.border }}>
-            <Text style={common.eyebrow}>RUN CONFIGURATION · ENTRY: {drafts.library.files.find(item => item.id === drafts.library.entries[drafts.library.language])?.name ?? file.name}</Text>
-            <Field label="Standard input" multiline value={drafts.library.stdin} onChangeText={stdin => drafts.configure({ stdin })} editable={drafts.ready} style={{ minHeight: 100, textAlignVertical: 'top', fontFamily: mono }} placeholder="Input provided to your program (not an interactive terminal)" />
-            <FlowRow><Field label={`Timeout ms (max ${Math.min(auth.me?.limits.maxTimeoutMs ?? 10000, 10000)})`} value={String(drafts.library.timeoutMs)} keyboardType="number-pad" editable={drafts.ready} onChangeText={value => { if (/^\d+$/.test(value) && Number(value) > 0) drafts.configure({ timeoutMs: Math.min(Number(value), 10000) }); }} /><Field label={`Memory MiB (max ${Math.min(auth.me?.limits.maxMemoryMb ?? 512, 512)})`} value={String(drafts.library.memoryMb)} keyboardType="number-pad" editable={drafts.ready} onChangeText={value => { if (/^\d+$/.test(value) && Number(value) > 0) drafts.configure({ memoryMb: Math.min(Number(value), 512) }); }} /></FlowRow>
-            <Text style={common.muted}>Tenant limits are applied when submitting. Only this language’s files are sent. Switching languages keeps all your drafts. No packages are installed by the editor.</Text>
-          </View>
+          <View style={{ marginTop: 20 }}><RunSettings /></View>
           {drafts.error && <View style={{ marginTop: 14, gap: 8 }}><Notice>{drafts.error}</Notice>{!drafts.ready && <Button label="Retry opening drafts" onPress={drafts.retry} />}</View>}
 
           <View style={[styles.footer, compact && { alignItems: 'flex-start', gap: 14, flexDirection: 'column' }]}>

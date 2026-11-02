@@ -51,7 +51,9 @@ export async function submitExecution(
   if (idempotencyKey !== undefined && !/^[A-Za-z0-9._:-]{1,200}$/.test(idempotencyKey))
     throw new ApiError(400, 'validation_error', 'invalid Idempotency-Key header');
 
-  const hash = requestHash(body);
+  // Preserve idempotency hashes for existing offline submissions after adding the flag.
+  const { network, ...offlineBody } = body;
+  const hash = requestHash(network ? { ...offlineBody, network: true } : offlineBody);
   const repo = new ExecutionRepo(ctx.pool, tenant.id);
 
   const replay = async (): Promise<SubmitResult | null> => {
@@ -99,6 +101,7 @@ export async function submitExecution(
 
   try {
     const manifest: SourceManifest = {
+      network: body.network,
       files: body.files.map((f) => ({ path: f.path, bytes: Buffer.byteLength(f.content), sha256: sha256Hex(f.content) })),
       stdin: { bytes: Buffer.byteLength(body.stdin), sha256: sha256Hex(body.stdin) },
     };

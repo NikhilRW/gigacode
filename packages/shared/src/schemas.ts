@@ -28,6 +28,7 @@ export const createExecutionSchema = z
     files: z.array(fileSchema).min(1).max(HARD_LIMITS.maxFiles),
     entryFile: z.string().refine(isSafeRelativePath, 'unsafe entry file'),
     stdin: z.string().max(HARD_LIMITS.stdinBytes).default(''),
+    network: z.boolean().default(false),
     limits: limitsInputSchema.default({}),
     priority: z.number().int().min(0).max(10).optional(),
   })
@@ -99,6 +100,7 @@ export const executionAttemptSchema = z.object({
 export type ExecutionAttempt = z.infer<typeof executionAttemptSchema>;
 
 export const executionDetailSchema = executionSchema.extend({
+  network: z.boolean().optional(),
   events: z.array(executionEventSchema),
   attempts: z.array(executionAttemptSchema),
   files: z.array(z.object({ path: z.string(), bytes: z.number() })),
@@ -218,6 +220,7 @@ export const usageSchema = z.object({
 export type Usage = z.infer<typeof usageSchema>;
 
 export const resultFileSchema = z.object({
+  network: z.boolean().optional(),
   executionId: z.string(),
   attempt: z.number(),
   status: statusSchema,

@@ -99,7 +99,8 @@ except OSError as e:
     print("no network:", e)
 ```
 
-Result: `no network: ...`. Sandboxed programs have no network at all, including the cloud metadata address.
+With Internet Off (the default), the result is `no network: ...`. With Internet On, public TCP/UDP is enabled;
+local/private and cloud metadata destinations remain filtered. Changing the toggle affects the next submission.
 
 **Read-only system files.**
 

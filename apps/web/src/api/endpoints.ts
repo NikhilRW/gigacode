@@ -27,6 +27,7 @@ async function withCsrf(p: Promise<Me>): Promise<Me> {
 }
 
 export interface ExecutionSource {
+  network?: boolean;
   language: LanguageId;
   entryFile: string;
   files: { path: string; content: string }[];

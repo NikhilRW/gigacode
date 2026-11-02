@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { access, chmod, mkdir, mkdtemp, open, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, chmod, mkdir, mkdtemp, open, readFile, rm, writeFile, type FileHandle } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -9,6 +9,7 @@ import { RunCgroup, setupRunsCgroup } from './cgroup.ts';
 import { captureCapped } from './output.ts';
 import { renderNsjailConfig } from './nsjail-config.ts';
 import { composeSeccompPolicy } from './seccomp.ts';
+import { RunEgress } from './network.ts';
 import { signalName } from './signals.ts';
 import type { SandboxDriver, SandboxResult, SandboxSpec } from './types.ts';
 
@@ -24,7 +25,8 @@ export interface NsjailDriverOptions {
 }
 
 /**
- * Runs each job under nsjail: new user/pid/mount/net/ipc/uts/cgroup namespaces, seccomp-bpf,
+ * Runs each job under nsjail: new user/pid/mount/ipc/uts/cgroup namespaces, seccomp-bpf,
+ * and a new offline network namespace or a scoped online egress firewall,
  * rlimits, read-only rootfs. The worker owns the per-run cgroup v2 (memory, pids, cpu) so it can
  * read OOM/peak/cpu stats and kill every descendant via cgroup.kill.
  */
@@ -63,6 +65,8 @@ export class NsjailDriver implements SandboxDriver {
     const policyPath = join(control, 'policy.kafel');
     const configPath = join(control, 'run.cfg');
     let cgroup: RunCgroup | null = null;
+    let egress: RunEgress | null = null;
+    let stdin: FileHandle;
     const fail = (setupError: string): SandboxResult => ({
       ...emptyResult(spec),
       setupError,
@@ -70,20 +74,22 @@ export class NsjailDriver implements SandboxDriver {
     });
 
     try {
-      await writeFile(policyPath, await composeSeccompPolicy(this.opts.seccompDir, spec.language), { mode: 0o600 });
+      await writeFile(policyPath, await composeSeccompPolicy(this.opts.seccompDir, spec.language, spec.network), { mode: 0o600 });
       await writeFile(configPath, renderNsjailConfig({ spec, seccompPolicyPath: policyPath, logPath }), { mode: 0o600 });
       cgroup = await RunCgroup.create(await this.cgroupRoot(), `run-${randomUUID()}`, {
         memoryBytes: spec.limits.memoryMb * 1024 * 1024,
         pids: spec.limits.pids,
         cpuMsPerSec: spec.limits.cpuMsPerSec,
       });
+      if (spec.network) egress = await RunEgress.create(spec.hostUid);
+      stdin = await open(spec.stdinPath, 'r');
     } catch (err) {
       await cgroup?.destroy().catch(() => {});
+      await egress?.destroy();
       await rm(control, { recursive: true, force: true });
       return fail(`sandbox setup failed: ${(err as Error).message}`);
     }
 
-    const stdin = await open(spec.stdinPath, 'r');
     let watchdogFired = false;
     let aborted = false;
     try {
@@ -159,8 +165,9 @@ export class NsjailDriver implements SandboxDriver {
         stderrTruncated: err.truncated,
       };
     } finally {
-      await stdin.close();
-      await cgroup.destroy().catch(() => {});
+      await stdin.close().catch(() => {});
+      const empty = await cgroup.destroy().then(() => true, () => false);
+      if (empty) await egress?.destroy();
       await rm(control, { recursive: true, force: true });
     }
   }

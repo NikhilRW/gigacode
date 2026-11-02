@@ -75,6 +75,7 @@ export async function checkApiConnection(input: string): Promise<ConnectionRepor
   } finally { clearTimeout(timer); }
 }
 type Options = { body?: unknown; query?: Record<string, string | number | undefined>; signal?: AbortSignal; text?: boolean; public?: boolean };
+type FetchRequest = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 export type Credential = { token: string; expiresAt: number; baseUrl: string };
 export class ApiClient {
   constructor(
@@ -82,7 +83,7 @@ export class ApiClient {
     private credential: Credential | null,
     private unauthorized: () => void,
     // Browser fetch requires its global receiver, not the ApiClient instance.
-    private fetcher: typeof fetch = (input, init) => globalThis.fetch(input, init),
+    private fetcher: FetchRequest = (input, init) => globalThis.fetch(input, init),
   ) {}
   async request<T>(method: string, path: string, options: Options = {}): Promise<T> {
     if (!this.baseUrl) throw new ApiError(0, 'Set your API server URL in Connection settings first.', 'not_configured');

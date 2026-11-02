@@ -41,7 +41,8 @@ in `app.json` to your ownership before distributing. No EAS project ID or signin
 ## Included screens
 
 - **Workspace:** Python, JavaScript/Node, C and C++; per-language files and entry point; standard input,
-  timeout/memory settings; authenticated run, progress, cancellation, output and resource measurements.
+  timeout/memory settings, advanced CPU/process limits, an Internet toggle; authenticated run, progress,
+  cancellation, output and toggleable resource measurements.
 - **Dashboard:** usage, workspace limits, hourly activity, onboarding and recent executions.
 - **History:** language/status/ID-prefix and date-range filters, cursor pagination and refresh.
 - **Execution:** source/input, output, compiler information, attempts/timeline, cancel and rerun.
@@ -75,6 +76,19 @@ completion, not AI or a full language server. Use the touch toolbar for Suggest,
 fields, undo/redo and hiding the keyboard. Keyboard shortcuts: Ctrl/Cmd+Enter runs, Ctrl/Cmd+S saves,
 Ctrl+Space suggests, Tab indents. Suggestions work without a backend connection.
 
+## Run controls
+
+Below the editor, **Run settings** provides time/memory presets and steppers, an **Advanced run settings**
+switch for CPU allowance/process limits, **Show resource usage**, and **Program internet access**.
+Preferences are saved with device drafts. CPU allowance is a quota relative to one core; usage cards
+show completed execution measurements, not live host/phone CPU. Internet traffic bytes are not measured.
+
+Internet is off by default. On enables outbound public TCP/UDP and DNS for the next submitted run;
+private/local destinations are filtered by the worker. It does not change an already-running job or
+the app's own API connection. Source history and reruns preserve it. The backend API and nsjail worker
+must both be rebuilt for this feature; the worker image now includes iptables. The development Docker
+driver supports offline execution only. A firewall setup failure fails the run and appears in stderr.
+
 ## Authentication
 
 The app uses `/v1/auth/native/register` and `/v1/auth/native/login`, then sends the returned user session
@@ -89,10 +103,15 @@ so the phone does not need access to MinIO or an internal S3 URL.
 
 ## Build commands
 
+For downloadable GitHub Actions IPAs and a local POCO X4 ARM64 APK, see
+**[Native build instructions](../../docs/NATIVE_BUILDS.md)**. The iOS workflow offers unsigned device
+IPA, EAS-signed device IPA and simulator `.app` artifacts.
+
 ```sh
 bun run web             # Browser development
 bun run build           # Static browser export to dist/
 bun run build:native    # Android/iOS JS + DOM exports to .expo/export-native/
+bun run apk:arm64       # Windows/PowerShell 7: local ARM64 Release APK (Android SDK/JDK required)
 bunx eas-cli build --platform android --profile development
 bunx eas-cli build --platform ios --profile development
 ```

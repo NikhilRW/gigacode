@@ -31,7 +31,7 @@ RUN sh /strip.sh && rm /strip.sh
 FROM node:20-bookworm-slim
 ARG NSJAIL_VERSION
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      libprotobuf32 libnl-route-3-200 ca-certificates \
+      libprotobuf32 libnl-route-3-200 ca-certificates iptables \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=nsjail /usr/local/bin/nsjail /usr/local/bin/nsjail
 COPY --from=nsjail /usr/local/share/nsjail-config.proto /usr/local/share/nsjail-config.proto

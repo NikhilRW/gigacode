@@ -1,7 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import { useState } from 'react';
 import { Link, type Href } from 'expo-router';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { font, type Colors } from '@/theme';
 import { useStyles, useTheme } from '@/state/ThemeProvider';
 
@@ -53,6 +53,16 @@ export function ThemeToggle() {
     <Button label={mode === 'dark' ? 'Dark' : 'Light'} icon={mode === 'dark' ? 'moon' : 'sun'}
       accessibilityLabel={`${mode === 'dark' ? 'Dark' : 'Light'} mode active. Switch to ${mode === 'dark' ? 'light' : 'dark'} mode`} onPress={toggle} compact />
     {persistenceError && <Notice>{persistenceError}</Notice>}
+  </View>;
+}
+export function SettingToggle({ label, description, value, onValueChange, disabled = false }: {
+  label: string; description?: string; value: boolean; onValueChange?: (value: boolean) => void; disabled?: boolean;
+}) {
+  const { colors, common } = useTheme();
+  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, minHeight: 56 }}>
+    <View style={{ flex: 1, gap: 4 }}><Text style={common.text}>{label}</Text>{description && <Text style={common.muted}>{description}</Text>}</View>
+    <Switch accessibilityLabel={label} accessibilityHint={description} disabled={disabled} value={value} onValueChange={onValueChange}
+      trackColor={{ false: colors.strongBorder, true: colors.accent }} thumbColor={value ? colors.onPrimary : colors.muted} ios_backgroundColor={colors.strongBorder} />
   </View>;
 }
 const createStyles = (colors: Colors) => StyleSheet.create({

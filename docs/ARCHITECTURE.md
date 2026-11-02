@@ -2,7 +2,7 @@
 
 A multi-tenant code execution engine. Clients submit source plus limits. The platform stores the source in S3, queues
 a job in Postgres, and a worker runs it inside an nsjail sandbox (Linux namespaces, cgroup v2, seccomp-bpf, rlimits,
-no network). Results go to S3, metadata to Postgres, and clients read everything through the API or the React
+network off by default). Results go to S3, metadata to Postgres, and clients read everything through the API or the React
 dashboard.
 
 The isolation model is **layered isolation and resource containment**. The host kernel stays in the trusted computing

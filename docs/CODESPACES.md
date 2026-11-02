@@ -172,6 +172,32 @@ run a second Metro server on the same port.
 4. Use **Focus editor** for keyboard-sized editing, **A+** for larger code, and **Suggest** for snippets.
 5. Open History to inspect source, attempts, output and resource use, or rerun a submission.
 
+### Internet and CPU controls
+
+Expo's **Run settings → Program internet access** controls the next submission. The original web
+Playground also has an **Internet On/Off** switch. The API accepts `"network": true` at the top level
+of an execution request; omitted/false stays offline. Source history and reruns preserve this choice.
+Advanced controls set a CPU quota and process/thread limit; the usage toggle only changes the display.
+
+After updating this feature, rebuild **both API and worker**, since the schema, policies and worker
+image changed:
+
+```bash
+# Repository root:
+bash .devcontainer/compose.sh up -d --build api worker
+```
+
+Online nsjail runs require working iptables/owner/conntrack rules (and ip6tables unless IPv6 is disabled).
+The worker image installs the tools; Codespaces must permit those kernel operations. If rule installation
+fails, the run fails before program startup and its stderr explains the setup error. Normal offline
+startup checks do not establish online connectivity. The development Docker driver remains offline-only.
+Existing database volumes can be kept; the mode is saved in source manifests, with old submissions
+defaulting to off.
+
+Internet On permits public outbound TCP/UDP and DNS, while local/private destinations remain filtered.
+It does not install Python/Node packages: use the bundled standard libraries (for example Python's
+`urllib.request`). The runner does not report network traffic byte counts.
+
 Drafts remain on the device. Execution history/source/results live on the server. This is not automatic
 cross-device draft synchronization.
 

@@ -51,8 +51,7 @@ POLICY base_errno {
     inotify_init, inotify_init1, inotify_add_watch, inotify_rm_watch
   },
   ERRNO(1) {
-    /* No sockets of any family: the network namespace has no interfaces either. */
-    socket, socketpair,
+    /* Socket policy is selected separately for each run. */
     chown, fchown, lchown, fchownat, setuid, setgid, setreuid, setregid, setresuid, setresgid, setgroups,
     setfsuid, setfsgid, capget, capset, setpriority, sched_setscheduler, sched_setparam, ioprio_get, ioprio_set,
     getxattr, lgetxattr, fgetxattr, listxattr, llistxattr, flistxattr,

@@ -60,8 +60,9 @@
 
 ### Sandbox
 
-- `socket` and `socketpair` return EPERM instead of killing the process, so programs see a normal error. The network
-  namespace has no interfaces in any case.
+- Offline runs return EPERM for `socket`/`socketpair` and use a fresh network namespace. The opt-in Internet mode
+  selects a separate socket policy and installs a per-UID public-destination firewall before execution. Compilation
+  remains offline; older source manifests without the mode also remain offline.
 - `clone3`, io_uring, `pkey_*`, landlock and AIO return ENOSYS so runtimes fall back cleanly. `clone` is allowed only
   without `CLONE_NEW*` flags.
 - Node also needs `memfd_create`, `getsockname`, `getpeername` and `getsockopt` (libuv probes its stdio fds).

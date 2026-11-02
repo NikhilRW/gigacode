@@ -53,13 +53,15 @@ export async function executionRoutes(app: FastifyInstance, ctx: AppContext) {
     const r = repo(auth, true);
     const [events, attempts] = await Promise.all([r.events(id), r.attempts(id)]);
     let files: { path: string; bytes: number }[] = [];
+    let network: boolean | undefined;
     try {
       const manifest = await ctx.storage.getJson<SourceManifest>(s3Keys.manifest(auth.tenantId, id));
       files = manifest.files.map((f) => ({ path: f.path, bytes: f.bytes }));
+      network = manifest.network === true;
     } catch {
       /* manifest missing or S3 down: files stay empty */
     }
-    return { ...toExecution(row), events, attempts, files };
+    return { ...toExecution(row), events, attempts, files, network };
   }
 
   app.post('/v1/executions', async (req, reply) => {
@@ -117,7 +119,7 @@ export async function executionRoutes(app: FastifyInstance, ctx: AppContext) {
       })),
     );
     const stdin = await ctx.storage.getText(s3Keys.stdin(auth.tenantId, row.id)).catch(() => '');
-    return { language: row.language, entryFile: row.entry_file, files, stdin, limits: row.limits };
+    return { language: row.language, entryFile: row.entry_file, files, stdin, limits: row.limits, network: manifest.network === true };
   });
 
   const logsQuery = z.object({

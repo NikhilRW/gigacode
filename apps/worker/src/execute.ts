@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import { writeFile } from 'node:fs/promises';
 import { COMPILE_LIMITS, DEFAULTS, LANGUAGES, type ResultFile } from '@engine/shared';
 import type { ClaimedJob } from '@engine/db';
 import type { SandboxDriver, SandboxLimits, SandboxResult } from '@engine/sandbox';
@@ -28,7 +29,7 @@ export async function executeInSandbox(args: {
     rootfsPath: join(args.rootfsDir, lang.rootfs),
     workspaceDir: dir.workspace,
     hostUid: args.hostUid,
-    network: false as const,
+    network: dir.manifest.network === true,
   };
   const runLimits: SandboxLimits = {
     wallMs: job.limits.timeoutMs,
@@ -45,6 +46,7 @@ export async function executeInSandbox(args: {
     const c = await driver.run(
       {
         ...base,
+        network: false, // Compilation never needs outbound access.
         command: lang.compile(job.entryFile),
         stdinPath: '/dev/null',
         stdoutPath: join(dir.root, 'stdout.log'),
@@ -53,6 +55,7 @@ export async function executeInSandbox(args: {
       },
       signal,
     );
+    await recordSetupError(c);
     compile = { exitCode: c.exitCode, wallMs: c.wallMs };
     if (c.exitCode !== 0 || c.setupError || c.timedOut || args.abortReason()) {
       // Compiler output becomes the job's stdout/stderr. A compile timeout is still a compile error.
@@ -72,5 +75,13 @@ export async function executeInSandbox(args: {
     },
     signal,
   );
+  await recordSetupError(r);
   return { outcome: mapOutcome(r, { aborted: args.abortReason(), compileFailed: false }), result: r, compile };
+}
+
+async function recordSetupError(result: SandboxResult) {
+  if (!result.setupError) return;
+  const text = `Sandbox setup failed: ${result.setupError}\n`;
+  await writeFile(result.stderrPath, text);
+  result.stderrBytes = Buffer.byteLength(text);
 }

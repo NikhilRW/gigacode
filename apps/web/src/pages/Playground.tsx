@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router-dom';
-import { ExternalLink, Loader2, Play, SlidersHorizontal, Square } from 'lucide-react';
+import { ExternalLink, Loader2, Play, SlidersHorizontal, Square, Wifi, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
 import type { LanguageId } from '@engine/shared';
 import { HARD_LIMITS } from '@shared/constants.ts';
@@ -37,6 +37,9 @@ interface Draft {
   stdin: string;
   timeoutMs: number;
   memoryMb: number;
+  cpuMsPerSec: number;
+  pids: number;
+  network: boolean;
 }
 
 function starter(lang: LanguageId): SourceFile[] {
@@ -82,6 +85,9 @@ export function PlaygroundPage() {
         stdin: source.stdin,
         timeoutMs: clamp(source.limits.timeoutMs, 100, maxTimeout),
         memoryMb: clamp(source.limits.memoryMb, 16, maxMemory),
+        cpuMsPerSec: source.limits.cpuMsPerSec,
+        pids: source.limits.pids,
+        network: source.network === true,
       };
     }
     return (
@@ -92,6 +98,9 @@ export function PlaygroundPage() {
         stdin: '',
         timeoutMs: Math.min(5000, maxTimeout),
         memoryMb: Math.min(256, maxMemory),
+        cpuMsPerSec: 1000,
+        pids: 64,
+        network: false,
       }
     );
     // Only the first render decides the starting state.
@@ -104,6 +113,9 @@ export function PlaygroundPage() {
   const [stdin, setStdin] = useState(initial.stdin);
   const [timeoutMs, setTimeoutMs] = useState(initial.timeoutMs);
   const [memoryMb, setMemoryMb] = useState(initial.memoryMb);
+  const [cpuMsPerSec, setCpu] = useState(initial.cpuMsPerSec ?? 1000);
+  const [pids, setPids] = useState(initial.pids ?? 64);
+  const [network, setNetwork] = useState(initial.network ?? false);
   const [executionId, setExecutionId] = useState<string | null>(null);
   const [panel, setPanel] = useState<'input' | 'output'>('output');
   const [pendingLanguage, setPendingLanguage] = useState<LanguageId | null>(null);
@@ -113,13 +125,13 @@ export function PlaygroundPage() {
   useEffect(() => {
     const t = setTimeout(() => {
       try {
-        localStorage.setItem(DRAFT_KEY, JSON.stringify({ language, files, entryFile, stdin, timeoutMs, memoryMb } satisfies Draft));
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ language, files, entryFile, stdin, timeoutMs, memoryMb, cpuMsPerSec, pids, network } satisfies Draft));
       } catch {
         /* private mode or storage disabled: the draft just isn't saved */
       }
     }, 400);
     return () => clearTimeout(t);
-  }, [language, files, entryFile, stdin, timeoutMs, memoryMb]);
+  }, [language, files, entryFile, stdin, timeoutMs, memoryMb, cpuMsPerSec, pids, network]);
 
   const live = useLiveExecution(executionId);
   const run = live.data;
@@ -150,9 +162,10 @@ export function PlaygroundPage() {
       files,
       entryFile,
       stdin,
-      limits: { timeoutMs: clamp(timeoutMs, 100, maxTimeout), memoryMb: clamp(memoryMb, 16, maxMemory) },
+      network,
+      limits: { timeoutMs: clamp(timeoutMs, 100, maxTimeout), memoryMb: clamp(memoryMb, 16, maxMemory), cpuMsPerSec: clamp(cpuMsPerSec, 1, 1000), pids: clamp(pids, 1, 64) },
     });
-  }, [busy, create, language, files, entryFile, stdin, timeoutMs, memoryMb, maxTimeout, maxMemory]);
+  }, [busy, create, language, files, entryFile, stdin, timeoutMs, memoryMb, cpuMsPerSec, pids, network, maxTimeout, maxMemory]);
   runRef.current = doRun;
 
   // Ctrl/Cmd+Enter anywhere on the page (the editor registers its own binding too).
@@ -334,6 +347,13 @@ export function PlaygroundPage() {
             </SelectContent>
           </Select>
 
+          <Button variant={network ? 'default' : 'outline'} role="switch" aria-checked={network} aria-label="Program internet access"
+            title="Outbound public TCP/UDP and DNS for the next run. Private/local destinations remain blocked."
+            onClick={() => setNetwork(value => !value)} className="gap-2">
+            {network ? <Wifi className="size-4" aria-hidden /> : <WifiOff className="size-4" aria-hidden />}
+            Internet {network ? 'On' : 'Off'}
+          </Button>
+
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="gap-2">
@@ -378,6 +398,15 @@ export function PlaygroundPage() {
                   onBlur={() => setMemoryMb(clamp(memoryMb, 16, maxMemory))}
                 />
                 <p className="text-xs text-muted-foreground">Up to {maxMemory} MB for your workspace.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>CPU allowance · {cpuMsPerSec / 10}% of one core</Label>
+                <div className="flex flex-wrap gap-1">{[250, 500, 750, 1000].map(value => <Button key={value} size="sm" variant={cpuMsPerSec === value ? 'default' : 'outline'} onClick={() => setCpu(value)}>{value / 10}%</Button>)}</div>
+              </div>
+              <div className="space-y-2">
+                <Label>Processes / threads · {pids}</Label>
+                <div className="flex flex-wrap gap-1">{[8, 16, 32, 64].map(value => <Button key={value} size="sm" variant={pids === value ? 'default' : 'outline'} onClick={() => setPids(value)}>{value}</Button>)}</div>
+                <p className="text-xs text-muted-foreground">Low process limits can prevent runtime startup. Limits and internet settings apply to the next run.</p>
               </div>
             </PopoverContent>
           </Popover>

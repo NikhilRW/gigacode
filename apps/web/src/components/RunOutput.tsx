@@ -23,11 +23,12 @@ function MetricChip({ label, value }: { label: string; value: string }) {
 
 export function MetricChips({ e }: { e: ExecutionDetail }) {
   return (
-    <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="metrics">
+    <dl className="grid grid-cols-2 gap-2 sm:grid-cols-5" data-testid="metrics">
       <MetricChip label="Exit code" value={e.exitCode === null ? '—' : String(e.exitCode)} />
       <MetricChip label="Wall time" value={formatMs(e.wallMs)} />
       <MetricChip label="CPU time" value={formatMs(e.cpuMs)} />
       <MetricChip label="Peak memory" value={formatBytes(e.peakMemoryBytes)} />
+      <MetricChip label="Internet" value={e.network === undefined ? 'Unknown' : e.network ? 'On' : 'Off'} />
     </dl>
   );
 }

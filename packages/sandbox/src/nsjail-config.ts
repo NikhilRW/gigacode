@@ -48,8 +48,8 @@ export function renderNsjailConfig({ spec, seccompPolicyPath, logPath }: NsjailC
     'envar: "PYTHONUNBUFFERED=1"',
     'keep_caps: false',
     'disable_no_new_privs: false',
-    // namespaces: everything new; the network namespace only has loopback
-    'clone_newnet: true',
+    // Online runs use the worker network only after per-UID egress rules are installed.
+    `clone_newnet: ${!spec.network}`,
     'clone_newuser: true',
     'clone_newns: true',
     'clone_newpid: true',
@@ -76,6 +76,7 @@ export function renderNsjailConfig({ spec, seccompPolicyPath, logPath }: NsjailC
     // mounts: read-only rootfs, per-run workspace, capped tmpfs, minimal /dev and /proc
     `mount { src: ${q(spec.rootfsPath)} dst: "/" is_bind: true rw: false }`,
     `mount { src: ${q(spec.workspaceDir)} dst: "/workspace" is_bind: true rw: true nosuid: true nodev: true }`,
+    ...(spec.network ? ['mount { src: "/etc/resolv.conf" dst: "/etc/resolv.conf" is_bind: true rw: false }'] : []),
     `mount { dst: "/tmp" fstype: "tmpfs" rw: true options: "size=${spec.limits.tmpfsMb}m,mode=1777" nosuid: true nodev: true }`,
     'mount { dst: "/proc" fstype: "proc" rw: false }',
     // /dev is a tiny tmpfs holding only the three device nodes bound in from the host

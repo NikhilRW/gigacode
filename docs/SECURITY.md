@@ -25,8 +25,9 @@ hostile workloads at scale, gVisor or Firecracker microVMs are the recommended n
 
 ### 2. Control plane → worker plane
 
-- Workers run on dedicated VMs in a private subnet, with **no inbound ports** and egress only to Postgres, Redis, S3,
-  DNS and NTP (`infra/worker-vm/firewall.sh`).
+- Workers run on dedicated VMs with **no inbound ports**. The agent's baseline egress is limited to Postgres,
+  Redis, S3, DNS and NTP (`infra/worker-vm/firewall.sh`). Explicit online executions install a scoped per-UID
+  public TCP/UDP policy ahead of that baseline and need a working external route/NAT.
 - Workers authenticate to Postgres as a login role in **`worker_role`**. That role has no table privileges; it can only
   execute the SECURITY DEFINER functions `worker_register`, `worker_claim`, `worker_heartbeat`, `worker_advance` and
   `worker_complete` (`packages/db/migrations/1730000000001_worker-functions.sql` and `…0002_fence-on-lease-expiry.sql`).
@@ -41,8 +42,13 @@ hostile workloads at scale, gVisor or Firecracker microVMs are the recommended n
 
 Configured per run in `packages/sandbox/src/nsjail-config.ts` and `cgroup.ts`:
 
-- **Namespaces:** new user, PID, mount, network, IPC, UTS and cgroup namespaces. The network namespace has only
-  loopback, so there is no route to the Internet, the host or `169.254.169.254`.
+- **Namespaces:** new user, PID, mount, IPC, UTS and cgroup namespaces. Default offline runs also have a fresh
+  network namespace and no sockets. Opt-in `network: true` runs share the worker/container network namespace
+  only after `packages/sandbox/src/network.ts` installs per-slot-UID IPv4/IPv6 OUTPUT rules. Those rules allow
+  configured DNS resolvers on port 53 and public TCP/UDP; local/private/link-local/metadata destinations are
+  rejected. IPv6 permits global unicast only unless disabled by the kernel. Rules are removed after the
+  execution cgroup is empty; setup failures do not start the program. This is destination filtering, not
+  domain/content filtering or network bandwidth accounting. Publicly addressed services are reachable.
 - **Identity:** uid and gid 65534 inside the sandbox, mapped to a **per-slot host uid (200000 + slot index)**, so
   concurrent runs never share a kernel uid. All capabilities are dropped and `no_new_privs` is set. The environment is
   explicitly empty apart from PATH, HOME, LANG and PYTHONUNBUFFERED, so no worker env vars or credentials leak in.
@@ -65,8 +71,9 @@ Configured per run in `packages/sandbox/src/nsjail-config.ts` and `cgroup.ts`:
   - **Killed explicitly:** mount, umount, pivot_root, chroot, ptrace, unshare, setns, keyctl, add_key, request_key,
     bpf, perf_event_open, kexec_*, *_module, reboot, swapon, swapoff, acct, userfaultfd, process_vm_readv/writev,
     open_by_handle_at, name_to_handle_at, the new mount API, syslog, and others.
-  - **Denied with EPERM:** `socket` and `socketpair` (every address family), chown, setuid and setgid family calls,
-    and xattrs. Programs get a clean error instead of being killed.
+  - **Denied with EPERM:** chown, setuid/setgid and xattrs. Offline socket/socketpair calls also return EPERM.
+    `network-on.kafel` instead permits IPv4/IPv6 stream/datagram clients and local socketpairs; raw/other
+    socket families and listen/accept stay denied. Compilation always uses the offline policy.
   - **Denied with ENOSYS** so runtimes fall back cleanly: clone3 (its arguments can't be filtered by BPF), io_uring,
     pkey_*, landlock and AIO.
 - **stdio:** stdin comes from a file; stdout and stderr are capped at 1 MB each and marked truncated.
@@ -91,7 +98,7 @@ output flood, oversized files, file-descriptor exhaustion, deep recursion and zo
 - iptables:
   - Default DROP for input and output.
   - The metadata address `169.254.169.254` is reachable only by uid 0 (the agent).
-  - The sandbox uid range has no egress at all.
+  - The sandbox uid range is denied by default; explicitly online runs prepend a scoped public-egress rule.
   - Egress is allowlisted to the Postgres, Redis and S3 CIDRs.
 - sysctls: `unprivileged_bpf_disabled=1`, `kptr_restrict=2`, `dmesg_restrict=1`, IPv6 disabled.
 - Require IMDSv2 with hop limit 1. This is set through the cloud API; the command is in `setup.sh`.

@@ -3,7 +3,7 @@ import { open } from 'node:fs/promises';
 import { join } from 'node:path';
 import { LANGUAGES, type LanguageId } from '@engine/shared';
 import { captureCapped } from './output.ts';
-import { runProbes } from './nsjail.ts';
+import { emptyResult, runProbes } from './nsjail.ts';
 import type { SandboxDriver, SandboxResult, SandboxSpec } from './types.ts';
 
 const IMAGES: Record<string, string> = { python: 'python:3.12-slim', node: 'node:20-slim', gcc: 'gcc:13' };
@@ -30,6 +30,7 @@ export class DockerDriver implements SandboxDriver {
   }
 
   async run(spec: SandboxSpec, signal: AbortSignal): Promise<SandboxResult> {
+    if (spec.network) return { ...emptyResult(spec), setupError: 'Internet-enabled execution requires the nsjail driver and its egress firewall. This development Docker driver supports offline runs only.' };
     const started = Date.now();
     const name = `sbx-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const image = IMAGES[LANGUAGES[spec.language].rootfs]!;

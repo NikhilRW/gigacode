@@ -33,7 +33,7 @@ export default function ExecutionScreen() {
       {!!message && <Notice>{message}</Notice>}
       <Card title="Outcome & output"><ResourceState resource={live} />{live.data && e && <RunOutput data={live.data} />}</Card>
       <Card title="Submitted source"><ResourceState resource={source} />{source.data && <>
-        <Text style={common.muted}>Entry: {source.data.entryFile} · {source.data.language} · timeout {source.data.limits.timeoutMs} ms · memory {source.data.limits.memoryMb} MiB</Text>
+        <Text style={common.muted}>Entry: {source.data.entryFile} · {source.data.language} · timeout {source.data.limits.timeoutMs} ms · memory {source.data.limits.memoryMb} MiB · CPU {(source.data.limits.cpuMsPerSec ?? 1000) / 10}% of one core · {source.data.limits.pids ?? 64} processes/threads · internet {source.data.network ? 'On' : 'Off'}</Text>
         {source.data.files.map(file => <View key={file.path} style={{ gap: 8 }}><Text style={common.eyebrow}>{file.path}</Text><Text selectable style={{ fontFamily: mono, color: colors.text, fontSize: 16, lineHeight: 25 }}>{file.content || '(empty)'}</Text></View>)}
         <Text style={common.eyebrow}>STANDARD INPUT</Text><Text selectable style={common.text}>{source.data.stdin || '(empty)'}</Text>
       </>}</Card>

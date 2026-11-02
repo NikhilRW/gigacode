@@ -33,6 +33,7 @@ language-server connection, remote package installation, or AI completion claim.
 ## State and network
 
 - **DraftProvider:** versioned local files, per-language entry points, stdin and run/editor settings.
+  CPU quota, process limit, Internet mode and usage/advanced-panel preferences default safely for old drafts.
   It reads old Python drafts with defaults, preserves other languages when switching, and serializes
   autosave/manual writes. Failed hydration does not overwrite stored work.
 - **AuthProvider:** restores the API origin and a matching session, verifies `/v1/me`, manages expiry,
@@ -57,6 +58,14 @@ mutations retain CSRF protection. Token lifetime is seven days, with local sign-
 server-side revocation system.
 
 ## Deployment
+
+Per-execution `network` is validated by the API and stored in the source manifest (absent on old runs
+means false). The worker uses it only for program execution; compilation stays offline. Online nsjail
+runs retain user/mount/PID/cgroup isolation but share the worker's network namespace after installing
+per-UID IPv4/IPv6 egress rules. DNS to configured resolvers and public TCP/UDP destinations are allowed;
+private/local ranges are rejected. Missing firewall support fails setup before code starts. Source and
+result endpoints expose the submitted mode, and both clients retain it for reruns. No database migration
+is needed because the immutable source manifest stores the execution policy.
 
 The Expo app has its own `bun.lock` and is installed from `apps/expo`. Backend packages retain their
 pnpm workspace. `app.json` enables tablets, landscape, Android keyboard resize and SecureStore;

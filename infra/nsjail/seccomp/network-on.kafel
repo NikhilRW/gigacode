@@ -1,0 +1,11 @@
+/* Public outbound TCP/UDP. RunEgress restricts destinations before any code starts. */
+/* First matching rule wins; unsupported socket types fall through to EPERM. */
+POLICY network_access {
+  ALLOW {
+    socket(domain, type, protocol) { (domain == 2 || domain == 10) && (((type & 0xf) == 1 && (protocol == 0 || protocol == 6)) || ((type & 0xf) == 2 && (protocol == 0 || protocol == 17))) },
+    socketpair(domain, type, protocol) { domain == 1 && protocol == 0 && ((type & 0xf) == 1 || (type & 0xf) == 2) },
+    connect, bind, getsockname, getpeername, getsockopt, setsockopt,
+    sendto, recvfrom, sendmsg, recvmsg, sendmmsg, recvmmsg, shutdown
+  },
+  ERRNO(1) { socket, socketpair, listen, accept, accept4 }
+}

@@ -147,6 +147,7 @@ export class Slot {
       const r = exec.result;
       const prefix = s3Keys.attemptPrefix(job.tenantId, job.id, job.attempt);
       const resultFile: ResultFile = {
+        network: dir.manifest.network === true,
         executionId: job.id,
         attempt: job.attempt,
         status: exec.outcome.status,
