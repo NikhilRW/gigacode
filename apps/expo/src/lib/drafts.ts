@@ -11,7 +11,7 @@ export const librarySchema = z.object({
   version: z.literal(1), files: z.array(draftSchema).min(1), activeId: z.string(),
   language: z.enum(['python', 'node', 'c', 'cpp']).default('python'),
   entries: z.object({ python: z.string().optional(), node: z.string().optional(), c: z.string().optional(), cpp: z.string().optional() }).default({}),
-  stdin: z.string().default(''), timeoutMs: z.number().int().positive().default(5000), memoryMb: z.number().int().positive().default(256), fontSize: z.number().min(14).max(26).default(17),
+  stdin: z.string().default(''), timeoutMs: z.number().int().positive().default(5000), memoryMb: z.number().int().positive().default(256), fontSize: z.number().min(8).max(26).default(17),
   cpuMsPerSec: z.number().int().min(1).max(1000).default(1000),
   pids: z.number().int().min(1).max(64).default(64),
   advancedSettings: z.boolean().default(false),

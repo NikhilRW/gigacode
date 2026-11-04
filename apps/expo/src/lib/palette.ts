@@ -4,7 +4,7 @@ export function decodeTheme(value: string | null): ThemeMode {
   return value === 'light' ? 'light' : 'dark';
 }
 
-// Every surface, including the DOM editor, uses the same semantic palette.
+// Shared app colors; code editors use the neutral palette below.
 export const palettes = {
   dark: {
     bg: '#040C18', panel: '#0A1729', raised: '#10223A', border: '#203750',
@@ -30,3 +30,17 @@ export const palettes = {
   },
 };
 export type Colors = typeof palettes.dark;
+
+// Neutral editor chrome on every platform; syntax colors stay readable in both modes.
+export const plainEditorPalettes = {
+  dark: {
+    background: '#171717', text: '#EDEDED', muted: '#A3A3A3', border: '#525252', selection: '#404040',
+    syntaxKeyword: '#C4B5FD', syntaxString: '#A7D4B1', syntaxFunction: '#9FC8EB',
+    syntaxNumber: '#E6C08B', syntaxComment: '#A3A3A3', syntaxOperator: '#C9C9C9',
+  },
+  light: {
+    background: '#FFFFFF', text: '#171717', muted: '#737373', border: '#D4D4D4', selection: '#E5E5E5',
+    syntaxKeyword: '#6D3FA3', syntaxString: '#24663A', syntaxFunction: '#245F91',
+    syntaxNumber: '#885511', syntaxComment: '#666666', syntaxOperator: '#4D4D4D',
+  },
+};

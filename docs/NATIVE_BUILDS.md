@@ -100,7 +100,7 @@ DOM assets; `--dev` intentionally creates a Metro/development-client build inste
 
 **`unsigned.ipa` needs Apple signing before normal iPhone installation.** Re-sign the app and embedded
 frameworks with an appropriate identity/provisioning profile using your chosen signing/sideload tool,
-including the required entitlements for SecureStore/keychain access. The native-sim workflow does not
+The iOS client uses basic AsyncStorage and excludes SecureStore from native linking. The native-sim workflow does not
 create a signed distribution IPA. The existing EAS preview profile remains available for a signed build:
 
 ```sh
@@ -138,6 +138,11 @@ phone, and accept its USB authorization prompt. If multiple devices/emulators ar
 - Set `ANDROID_HOME` to your SDK directory (commonly `%LOCALAPPDATA%\Android\Sdk`). Install the
   generated project's requested platform/build-tools/NDK/CMake versions through SDK Manager; SDK 57
   targets Android API 36. The first Gradle build downloads substantial dependencies.
+- Install **CMake 4.1.2** through Android Studio → SDK Manager → SDK Tools → Show Package Details.
+  The app pins it through `expo-build-properties` so the app and native libraries use its **Ninja 1.12.1**.
+  Android's older CMake 3.22.1 includes Ninja 1.10.2, which misidentifies long dependency paths as
+  missing on this checkout and causes `build.ninja still dirty after 100 tries`. Merely adding a newer
+  Ninja to PATH does not fix it: Gradle selects the Ninja bundled with its configured CMake.
 
 ### One-command build
 
@@ -197,6 +202,40 @@ On Linux/macOS the equivalent Gradle invocation is:
 If Windows CMake/Ninja reports path-length or quoting errors, try a short checkout path such as
 `D:\gigacode` before changing native build files. If the SDK location is missing, set `ANDROID_HOME`
 in the terminal before the build. No Android emulator is required to produce the APK.
+
+For the Reanimated regeneration loop specifically, install dependencies and rerun `bun run apk:arm64`:
+Prebuild now writes `android.cmakeVersion=4.1.2`, and Gradle generates a separate CMake build directory.
+The targeted Reanimated/Worklets ARM64 native build has passed with this override in the existing long
+checkout path; no manual node_modules edits, dependency downgrades or global Gradle-cache deletion are
+needed for that failure.
+
+If the build then says **`No space left on device`** / **`There is not enough space on the disk`**, that
+is a separate storage failure, not another Ninja regeneration bug. Native object files, copied libraries
+and Gradle/SDK caches can require several GB on both the checkout drive and the system/cache drive.
+The Windows helper refuses to start if the checkout drive has less than 1 GiB free; that is an early
+failure threshold, not a guarantee that 1 GiB is enough. Prefer at least 5–10 GiB of build headroom.
+Free disk space or place a fresh source checkout on a larger drive (for example `D:\gigacode`) and
+install dependencies there. Do not copy old `.cxx`/`build` caches to a new path; they embed absolute paths.
+Keep your original checkout until all local changes and configuration have been preserved.
+
+After moving/copying the checkout, React Native can reuse
+`android/build/generated/autolinking/autolinking.json` with the old absolute directory even when
+package files are unchanged. The APK helper now detects that root mismatch and removes only generated
+project/module build caches before running Prebuild/Gradle. It preserves native sources, signing keys,
+environment files and global caches. Run normally from the new `apps/expo` directory:
+
+```powershell
+bun run apk:arm64
+```
+
+To explicitly invalidate those caches if the generated metadata is missing or otherwise stale:
+
+```powershell
+pwsh -NoProfile -File ./scripts/build-android.ps1 -ResetNativeCache
+```
+
+Do not use `gradlew clean` as the first recovery command for an old autolinking path: Gradle can fail
+while configuring the nonexistent old module directory, before the clean task can run.
 
 ## Verification boundary
 

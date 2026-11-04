@@ -23,6 +23,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@uiw/react-codemirror": "^4.25.12",
     "expo": "~57.0.26",
+    "expo-build-properties": "~57.0.22",
     "expo-constants": "~57.0.20",
     "expo-dev-client": "~57.0.20",
     "expo-device": "~57.0.2",
@@ -68,6 +69,13 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "eslint src tests"
+  },
+  "expo": {
+    "autolinking": {
+      "apple": {
+        "exclude": ["expo-secure-store"]
+      }
+    }
   },
   "private": true
 }

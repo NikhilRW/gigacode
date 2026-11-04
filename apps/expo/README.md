@@ -56,6 +56,11 @@ they are not automatically cloud-synced. Submitted source and results are availa
 
 ## Editor and native compatibility
 
+On web and Android/iOS the editor uses neutral light/dark surfaces with readable syntax colors, no
+active-line decoration, and compact line-number spacing. The workspace has subtle rounded, clipped
+corners and matching editor/output backgrounds, without glow. Native file actions remain available
+without a language badge. The rest of the website keeps its existing theme.
+
 CodeMirror is **browser-only**. `src/components/CodeEditor.tsx` is explicitly an Expo **`'use dom'` component**:
 
 - **Web:** CodeMirror runs in the page's browser DOM.
@@ -67,14 +72,16 @@ CodeMirror is **browser-only**. `src/components/CodeEditor.tsx` is explicitly an
   latest document through a one-way imperative call and waits for a native-action reply before
   submitting/saving. It does not rely on an unsupported return value from a native DOM ref.
 
-Code defaults to **17 px**, with larger text available up to 26 px. **Focus editor** opens a flex-sized,
-keyboard-aware editing view; Done returns to output and run settings. Landscape and tablets are supported.
-Phones stack output below the editor and use a Files sheet; wider displays show side panels.
+Code defaults to **17 px**, with a saved font-size range of **8–26 px**. The editor grows with its content,
+wraps long lines and has no inner scrolling or bottom toolbar. The output below also expands fully;
+one page scroll handles the whole workspace, including swipes that start over the editor. Focus editor
+hides the introduction without creating a separate scroll area. Landscape and tablets are supported.
+Phones use a Files sheet; wider displays can show the file sidebar.
 
 Suggestions combine language-specific snippets/builtins with words in the current file. This is local
-completion, not AI or a full language server. Use the touch toolbar for Suggest, indentation, snippet
-fields, undo/redo and hiding the keyboard. Keyboard shortcuts: Ctrl/Cmd+Enter runs, Ctrl/Cmd+S saves,
-Ctrl+Space suggests, Tab indents. Suggestions work without a backend connection.
+completion, not AI or a full language server. Suggestions open while typing and can be selected by touch.
+Keyboard shortcuts: Ctrl/Cmd+Enter runs, Ctrl/Cmd+S saves, Ctrl+Space suggests, Tab indents. Suggestions
+work without a backend connection. The Suggest/Indent/Outdent/Next field toolbar has been removed.
 
 ## Run controls
 
@@ -92,8 +99,11 @@ driver supports offline execution only. A firewall setup failure fails the run a
 ## Authentication
 
 The app uses `/v1/auth/native/register` and `/v1/auth/native/login`, then sends the returned user session
-as `Authorization: Bearer ce_session_...`. Android/iOS store it in Expo SecureStore; Expo web uses the
-current tab's sessionStorage. Browser-cookie login in the original dashboard remains available separately.
+as `Authorization: Bearer ce_session_...`. **iOS uses basic AsyncStorage (unencrypted)** and excludes
+SecureStore from Apple autolinking; no Keychain API is used by the iOS client. Android keeps SecureStore
+through its platform-specific credential module. Expo web uses the current tab's sessionStorage.
+After switching an existing iOS installation from SecureStore, sign in again; the app does not access
+the previous Keychain entry to migrate it. Browser-cookie login in the original dashboard remains available separately.
 Sessions expire after seven days; a protected 401 clears the app's session. Sign-out removes the local
 credential; it does not revoke all server JWT copies. Passwords are never persisted by the client.
 

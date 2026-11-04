@@ -17,6 +17,7 @@ import { executionSource } from '@/lib/drafts';
 import { languageIds, languages } from '@/lib/languages';
 import { useLiveRun } from '@/lib/useResource';
 import { terminal } from '@/lib/types';
+import { plainEditorPalettes } from '@/lib/palette';
 import { useDrafts } from '@/state/DraftProvider';
 import { font, mono, type Colors } from '@/theme';
 import { useStyles, useTheme } from '@/state/ThemeProvider';
@@ -29,10 +30,11 @@ export default function Workspace() {
 function WorkspaceContent() {
   const { colors, common, mode } = useTheme();
   const styles = useStyles(createStyles);
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const desktop = width >= 960;
-  const splitConsole = width >= 1200;
   const compact = width < 600;
+  const nativeEditor = Platform.OS === 'android' || Platform.OS === 'ios';
+  const editorColors = plainEditorPalettes[mode];
   const drafts = useDrafts();
   const auth = useAuth();
   const file = drafts.library.files.find(item => item.id === drafts.library.activeId) ?? drafts.library.files[0];
@@ -84,33 +86,13 @@ function WorkspaceContent() {
   const statusText = { loading: 'Opening device drafts…', saved: 'Saved on device', unsaved: 'Unsaved changes', saving: 'Saving on device…', error: 'Storage needs attention' }[drafts.status];
   const editorView = drafts.ready ? <CodeEditor ref={editor} key={file.id} fileId={file.id} code={file.code} readOnly={false} mode={mode} language={drafts.library.language} fontSize={drafts.library.fontSize}
     onChange={async (id, code) => drafts.edit(id, code)} onSave={saveFromEditor} onRun={run} onDocument={onDocument}
-    dom={{ style: { flex: 1, backgroundColor: colors.editor }, scrollEnabled: true }} /> : <Text style={common.muted}>Opening device drafts…</Text>;
-
-  // A dedicated flex layout keeps the editor above the software keyboard. Avoid
-  // nesting a viewport-sized editor in the page ScrollView while in focus mode.
-  if (focusEditor) return <SafeAreaView style={styles.safe}>
-    <Stack.Screen options={{ title: `${file.name} — GigaCode` }} />
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.editorHeader, { paddingHorizontal: 12 }]}>
-        <Button label="Done" compact onPress={() => { void toggleFocus(); }} />
-        <Text numberOfLines={1} style={[common.text, { flex: 1 }]}>{file.name}</Text>
-        <Button label="Save" compact onPress={() => { void save(); }} />
-        <Button label={submitting ? 'Sending…' : 'Run'} variant="primary" compact disabled={submitting || activeRun} onPress={() => { void run(); }} />
-      </View>
-      <View style={{ flex: 1, minHeight: 0 }}>{editorView}</View>
-      <View style={[styles.statusBar, { gap: 8, flexWrap: 'wrap' }]}>
-        <Text style={styles.status}>{statusText}{runData ? ` · ${runData.execution.status}` : ''}</Text>
-        <Button label="Output & settings" compact onPress={() => { void toggleFocus(); }} />
-      </View>
-      {!!runError && <Notice>{runError}</Notice>}
-      {drafts.error && <Notice>{drafts.error}</Notice>}
-    </KeyboardAvoidingView>
-  </SafeAreaView>;
+    dom={{ matchContents: true, containerStyle: { width: '100%', backgroundColor: editorColors.background }, style: { width: '100%', backgroundColor: editorColors.background },
+      scrollEnabled: false, nestedScrollEnabled: false, showsVerticalScrollIndicator: false, showsHorizontalScrollIndicator: false }} /> : <Text style={common.muted}>Opening device drafts…</Text>;
 
   return <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
     <Stack.Screen options={{ title: 'GigaCode — A little code. Infinite possibilities.' }} />
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView nestedScrollEnabled contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <View style={[styles.page, compact && { paddingHorizontal: 18 }]}>
           <View style={styles.header}>
             <View style={common.row}><Brand />{!compact && <View style={styles.headerDivider} />}{!compact && <Text style={styles.headerLabel}>YOUR CODE PLAYGROUND</Text>}</View>
@@ -131,43 +113,43 @@ function WorkspaceContent() {
             {width >= 1000 && <View style={styles.heroOrbit}><Orbit compact /><View style={styles.orbitCaption}><View style={styles.tinyDot} /><Text style={styles.orbitLabel}>YOUR IDEAS HAVE NO LIMITS</Text></View></View>}
           </View>}
           <View style={{ gap: 12, marginBottom: 18 }}>
-            <FlowRow>{languageIds.map(language => <Button key={language} label={languages[language].label} variant={drafts.library.language === language ? 'primary' : 'secondary'} onPress={() => drafts.setLanguage(language)} disabled={!drafts.ready} />)}<Button label="Focus editor" disabled={!drafts.ready} onPress={() => { void toggleFocus(); }} variant="ghost" /></FlowRow>
-            <FlowRow><Button label="A−" accessibilityLabel="Decrease code font size" disabled={drafts.library.fontSize <= 16 || !drafts.ready} onPress={() => drafts.configure({ fontSize: Math.max(16, drafts.library.fontSize - 1) })} /><Text style={common.muted}>{drafts.library.fontSize}px code</Text><Button label="A+" accessibilityLabel="Increase code font size" disabled={drafts.library.fontSize >= 26 || !drafts.ready} onPress={() => drafts.configure({ fontSize: drafts.library.fontSize + 1 })} /><Button label="Use as entry" disabled={!drafts.ready || drafts.library.entries[drafts.library.language] === file.id} onPress={() => drafts.setEntry(file.id)} /><Button label="Delete file" disabled={!drafts.ready || drafts.library.files.filter(item => item.language === drafts.library.language).length < 2} onPress={() => { setHelpVisible(false); setRunError('To delete this file, use the confirmation below.'); }} /></FlowRow>
+            <FlowRow>{languageIds.map(language => <Button key={language} label={languages[language].label} variant={drafts.library.language === language ? 'primary' : 'secondary'} onPress={() => drafts.setLanguage(language)} disabled={!drafts.ready} />)}<Button label={focusEditor ? 'Show introduction' : 'Focus editor'} disabled={!drafts.ready} onPress={() => { void toggleFocus(); }} variant="ghost" /></FlowRow>
+            <FlowRow><Button label="A−" accessibilityLabel="Decrease code font size" disabled={drafts.library.fontSize <= 8 || !drafts.ready} onPress={() => drafts.configure({ fontSize: Math.max(8, drafts.library.fontSize - 1) })} /><Text style={common.muted}>{drafts.library.fontSize}px code</Text><Button label="A+" accessibilityLabel="Increase code font size" disabled={drafts.library.fontSize >= 26 || !drafts.ready} onPress={() => drafts.configure({ fontSize: drafts.library.fontSize + 1 })} /><Button label="Use as entry" disabled={!drafts.ready || drafts.library.entries[drafts.library.language] === file.id} onPress={() => drafts.setEntry(file.id)} /><Button label="Delete file" disabled={!drafts.ready || drafts.library.files.filter(item => item.language === drafts.library.language).length < 2} onPress={() => { setHelpVisible(false); setRunError('To delete this file, use the confirmation below.'); }} /></FlowRow>
           </View>
 
-          <View style={[styles.workspace, { flexDirection: desktop ? 'row' : 'column' }]}>
-            {desktop && <View style={styles.sidebar}><FilesPanel onNew={() => setNameMode('new')} /></View>}
+          <View style={[styles.workspace, { flexDirection: desktop ? 'row' : 'column', backgroundColor: editorColors.background, borderColor: editorColors.border }]}>
+            {desktop && <View style={[styles.sidebar, { borderRightColor: editorColors.border }]}><FilesPanel onNew={() => setNameMode('new')} /></View>}
             <View style={{ flex: 1, minWidth: 0 }}>
-              <View style={[styles.editorHeader, compact && { paddingHorizontal: 12, gap: 6 }]}>
+              <View style={[styles.editorHeader, compact && { paddingHorizontal: 12, gap: 6 }, nativeEditor && styles.plainEditorHeader, { backgroundColor: editorColors.background, borderBottomColor: editorColors.border }]}>
                 <View style={[common.row, { flex: 1, minWidth: 0, gap: 8 }]}>
                   {!desktop && <Button label="Files" icon="folder" compact onPress={() => setFilesVisible(true)} />}
-                  <View style={[styles.pythonMark, compact && { display: 'none' }]}><Text style={styles.pythonMarkText}>{drafts.library.language === 'python' ? 'py' : drafts.library.language}</Text></View>
-                  <Text numberOfLines={1} style={[common.text, { fontSize: 12, flexShrink: 1 }]}>{file.name}</Text>
+                  {!nativeEditor && <View style={[styles.pythonMark, compact && { display: 'none' }]}><Text style={styles.pythonMarkText}>{drafts.library.language === 'python' ? 'py' : drafts.library.language}</Text></View>}
+                  <Text numberOfLines={1} style={[common.text, { fontSize: 12, flexShrink: 1, color: editorColors.text }]}>{file.name}</Text>
                   {drafts.status === 'unsaved' && <View accessibilityLabel="Unsaved changes" style={styles.unsavedDot} />}
                   {!compact && <Button label="Rename" compact variant="ghost" onPress={() => setNameMode('rename')} disabled={!drafts.ready} />}
                 </View>
                 <Button label="Save" icon="save" compact onPress={() => { void save(); }} disabled={!drafts.ready || drafts.status === 'saving'} />
                 <Button label={submitting ? 'Sending…' : 'Run'} icon="play" variant="primary" compact disabled={!drafts.ready || submitting || activeRun} onPress={() => { void run(); }} />
               </View>
-              {compact && <View style={styles.mobileFileBar}><Text style={styles.micro}>LOCAL DRAFT</Text><Button label="Rename file" icon="edit-2" variant="ghost" compact onPress={() => setNameMode('rename')} disabled={!drafts.ready} /></View>}
-              <View style={{ flexDirection: splitConsole ? 'row' : 'column' }}>
-                <View style={{ flex: splitConsole ? 1 : undefined, minWidth: 0, height: Math.max(focusEditor ? 480 : 400, Math.min(900, height * (focusEditor ? 0.82 : 0.65))) }}>
+              {compact && <View style={[styles.mobileFileBar, { borderBottomColor: editorColors.border }, nativeEditor && { justifyContent: 'flex-end' }]}>{!nativeEditor && <Text style={styles.micro}>LOCAL DRAFT</Text>}<Button label="Rename file" icon="edit-2" variant="ghost" compact onPress={() => setNameMode('rename')} disabled={!drafts.ready} /></View>}
+               <View>
+                 <View style={{ minWidth: 0 }}>
                   {editorView}
                 </View>
-                <View style={[styles.console, splitConsole ? { width: 370, borderLeftWidth: 1, maxHeight: 900 } : { minHeight: 260, maxHeight: 600, borderTopWidth: 1 }]}>
-                  <View style={styles.consoleHeader}><View style={[common.row, { gap: 8 }]}><Icon name="terminal" size={14} /><Text style={styles.consoleTitle}>Output</Text></View><Button label="Clear" accessibilityLabel="Clear execution output" variant="ghost" compact disabled={(activeRun && !live.error) || submitting} onPress={() => { setExecutionId(null); setRunError(''); }} /></View>
-                  <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, flexGrow: 1 }}>
+                 <View style={[styles.console, { borderTopWidth: 1, backgroundColor: editorColors.background, borderColor: editorColors.border }]}>
+                  <View style={[styles.consoleHeader, { borderBottomColor: editorColors.border }]}><View style={[common.row, { gap: 8 }]}><Icon name="terminal" size={14} /><Text style={[styles.consoleTitle, { color: editorColors.muted }]}>Output</Text></View><Button label="Clear" accessibilityLabel="Clear execution output" variant="ghost" compact disabled={(activeRun && !live.error) || submitting} onPress={() => { setExecutionId(null); setRunError(''); }} /></View>
+                   <View style={{ padding: 20 }}>
                     {executionId ? <View style={{ gap: 12 }}><ResourceState resource={live} />{runData && <RunOutput data={runData} />}<Button label="Full execution details" href={{ pathname: '/execution', params: { id: executionId } }} />{activeRun && <Button label={cancelling ? 'Requesting cancellation…' : 'Cancel execution'} disabled={cancelling} onPress={() => { void cancel(); }} />}</View> : <View style={{ flex: 1, justifyContent: 'center', gap: 12 }}>
                       <View style={styles.terminalMark}><Icon name="terminal" size={20} color={colors.cyan} /></View>
                       <Text style={[common.text, { fontSize: 13 }]}>Room for a little discovery.</Text>
                       <Text style={[common.muted, { fontSize: 15 }]}>{auth.me ? 'Run your code to see output, status, and metrics here.' : 'Guests can edit and save drafts. Sign in to execute code.'}</Text>
                       {!auth.me && <Button label="Sign in to run" href="/login" />}
                     </View>}
-                  </ScrollView>
-                  <View style={styles.runtime}><View style={styles.tinyDot} /><Text style={styles.runtimeText}>{auth.me ? 'AUTHENTICATED API · FOCUS POLLING' : 'DEVICE DRAFTS · SIGN IN TO RUN'}</Text><Icon name="server" size={11} /></View>
+                   </View>
+                  <View style={[styles.runtime, { borderTopColor: editorColors.border }]}><View style={styles.tinyDot} /><Text style={styles.runtimeText}>{auth.me ? 'AUTHENTICATED API · FOCUS POLLING' : 'DEVICE DRAFTS · SIGN IN TO RUN'}</Text><Icon name="server" size={11} /></View>
                 </View>
               </View>
-              <View style={styles.statusBar}>
+              <View style={[styles.statusBar, { borderTopColor: editorColors.border }]}>
                 <View style={[common.row, { gap: 6 }]}><Icon name={drafts.status === 'saved' ? 'check-circle' : drafts.status === 'error' ? 'alert-circle' : 'hard-drive'} size={11} color={drafts.status === 'error' ? colors.error : colors.muted} /><Text accessibilityLiveRegion="polite" style={styles.status}>{statusText}</Text></View>
                 <Pressable accessibilityRole="button" accessibilityLabel="Editor keyboard shortcuts and tips" onPress={() => setHelpVisible(true)} style={styles.helpButton}><Icon name="command" size={11} /><Text style={styles.status}>{compact ? 'Tips' : 'Keyboard & tips'}</Text></Pressable>
               </View>
@@ -197,7 +179,7 @@ function WorkspaceContent() {
           <Pill label="A FEW LITTLE SHORTCUTS" />
           <Text style={[styles.heading, { fontSize: 28, lineHeight: 34, marginBottom: 20 }]}>Stay in your flow.</Text>
           {[['⌘ / Ctrl + Enter', 'Submit a sandbox run'], ['⌘ / Ctrl + S', 'Save on this device'], ['Ctrl + Space', 'Open language suggestions'], ['Tab / Next field', 'Indent or advance a snippet'], ['↑ ↓ · Enter · Esc', 'Navigate, accept, dismiss']].map(([key, description]) => <View key={key} style={styles.shortcut}><Text style={{ color: colors.accent, fontFamily: mono, fontSize: 12 }}>{key}</Text><Text style={common.muted}>{description}</Text></View>)}
-          <Text style={[common.muted, { marginTop: 16, marginBottom: 22 }]}>On touch screens, tap Suggest in the editor and tap a completion. Start with “pri” to discover print. Local saves do not require an account.</Text>
+           <Text style={[common.muted, { marginTop: 16, marginBottom: 22 }]}>Suggestions appear as you type; tap a completion to insert it. Start with “pri” to discover print. The editor expands with your code, and the whole page scrolls together. Local saves do not require an account.</Text>
           <Button label="Back to creating" variant="primary" onPress={() => setHelpVisible(false)} />
         </View>
       </View>
@@ -217,9 +199,10 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   orbitCaption: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: -20 },
   orbitLabel: { color: colors.faint, fontFamily: font.regular, fontSize: 8, letterSpacing: 2 },
   tinyDot: { width: 4, height: 4, backgroundColor: colors.cyan, borderRadius: 4 },
-  workspace: { borderWidth: 1, borderColor: colors.strongBorder, borderRadius: 22, overflow: 'hidden', backgroundColor: colors.panel, boxShadow: `0 20px 70px -20px ${colors.shadow}, 0 0 40px ${colors.glow}` },
+  workspace: { borderWidth: 1, borderRadius: 12, overflow: 'hidden' },
   sidebar: { width: 246, borderRightWidth: 1, borderRightColor: colors.border },
   editorHeader: { height: 65, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.raised },
+  plainEditorHeader: { height: 'auto', minHeight: 48, paddingHorizontal: 8, paddingVertical: 4 },
   pythonMark: { backgroundColor: colors.accentSoft, width: 25, height: 25, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
   pythonMarkText: { color: colors.accent, fontFamily: mono, fontSize: 11 },
   unsavedDot: { width: 5, height: 5, borderRadius: 5, backgroundColor: colors.warning },

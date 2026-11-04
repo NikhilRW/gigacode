@@ -101,7 +101,8 @@ You can also enter that URL in the app's **Connection** screen. Use the full ori
 Changing servers signs you out and preserves drafts. `localhost` on a phone means the phone.
 
 The app signs in through `/v1/auth/native/login` or `/v1/auth/native/register`, then sends the returned
-user Bearer token. Native storage is SecureStore. No API key, cookie copying, or CSRF workaround is needed.
+user Bearer token. iOS uses basic unencrypted AsyncStorage; Android uses SecureStore. No API key,
+cookie copying, or CSRF workaround is needed.
 The original dashboard's cookie/CSRF flow remains available separately.
 
 ## 5. Install the Android/iOS app and connect Metro

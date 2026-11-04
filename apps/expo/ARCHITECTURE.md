@@ -5,7 +5,10 @@
 The existing Expo theme remains the design source: `src/lib/palette.ts`, `src/theme.ts`, and
 `src/state/ThemeProvider.tsx`. Ink-navy surfaces, azure actions, cyan accents, Space Grotesk, rounded
 panels and the static Orbit artwork are retained. Light mode uses ice-blue surfaces, white chrome
-and navy text. The same semantic colors drive editor syntax and completion menus.
+and navy text. Web and Android/iOS editors use `plainEditorPalettes` for neutral light/dark surfaces
+and completion menus, retain readable light/dark syntax colors without active-line decoration,
+and keep the line-number gutter close to the code. The workspace clips its editor and output surfaces
+inside a subtle rounded frame with matching neutral backgrounds and no glow.
 
 ## Native/browser boundary
 
@@ -25,8 +28,11 @@ before taking a draft snapshot. Native imperative calls are one-way, so `useEdit
 replies by request ID, times out missing replies and cancels pending requests on editor replacement. Theme and
 font updates reconfigure the existing editor without losing its document. File selection remounts it.
 
-The native focus layout is flex-sized above the software keyboard, with an internal editor scroller
-and horizontal touch toolbar. The regular page uses explicit editor dimensions inside a page scroller.
+The editor has natural content height, line wrapping and no internal scroll or bottom toolbar. Native
+`matchContents` measures the DOM body and grows the WebView. `nestedScrollEnabled=false` stops Expo's
+Android DOM WebView from requesting exclusive touch interception, allowing the outer page ScrollView
+to handle swipes over code. Output also grows without a nested ScrollView or maximum-height clipping.
+Focus mode hides the introduction while retaining the same page-scroll layout and editor instance.
 Completion is a curated set of snippets/builtins plus identifiers from the document; there is no
 language-server connection, remote package installation, or AI completion claim.
 
@@ -39,8 +45,11 @@ language-server connection, remote package installation, or AI completion claim.
 - **AuthProvider:** restores the API origin and a matching session, verifies `/v1/me`, manages expiry,
   and prevents old-session responses from overwriting a changed connection. Credential writes are
   serialized. Logout/server changes clear account state without deleting drafts.
-- **SecureStore:** encrypted/keychain-backed credentials on Android/iOS. Web uses sessionStorage;
-  server/API-key secrets are not embedded in the app or passed into the DOM editor.
+- **Credential storage:** iOS uses basic unencrypted AsyncStorage; web uses sessionStorage. Metro selects
+  `credentialStore.android.ts` on Android to retain SecureStore there. Apple autolinking explicitly
+  excludes `expo-secure-store`, and the shared plugin disables the unused iOS Face ID permission.
+  Existing iOS users sign in again rather than migrating Keychain credentials. Server/API-key secrets
+  are not embedded in the app or passed into the DOM editor.
 - **ApiClient:** normalizes origins, attaches a user Bearer token only to its matching origin,
   omits cookies, aborts timed-out requests, and surfaces structured errors. Public authentication
   requests do not attach a stale credential. Codespaces proxy HTML is not accepted as a session.
@@ -68,7 +77,7 @@ result endpoints expose the submitted mode, and both clients retain it for rerun
 is needed because the immutable source manifest stores the execution policy.
 
 The Expo app has its own `bun.lock` and is installed from `apps/expo`. Backend packages retain their
-pnpm workspace. `app.json` enables tablets, landscape, Android keyboard resize and SecureStore;
+pnpm workspace. `app.json` enables tablets, landscape and Android keyboard resize;
 `eas.json` defines device development/preview and production profiles. EAS ownership and signing remain
 configured through the user's account.
 

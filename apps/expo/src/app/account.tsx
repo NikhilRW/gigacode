@@ -5,6 +5,7 @@ import { Button, Notice } from '@/components/ui';
 import { useAuth } from '@/state/AuthProvider';
 import { useTheme } from '@/state/ThemeProvider';
 import { describeError } from '@/lib/client';
+import { credentialStorageDescription } from '@/lib/credentialStore';
 
 export default function Account() { return <AppScreen title="Your account" subtitle="Manage your profile and session. Local drafts are independent of your account."><AccountForms /></AppScreen>; }
 function AccountForms() {
@@ -30,6 +31,6 @@ function AccountForms() {
     <Card title="Profile"><Text selectable style={common.muted}>{auth.me?.user.email} · {auth.me?.user.role}</Text><Text style={common.muted}>Workspace: {auth.me?.tenant.name}</Text><Field label="Display name" value={name} onChangeText={setName} autoComplete="name" maxLength={80} /><Button label="Save profile" disabled={busy} onPress={() => { void action('profile'); }} variant="primary" /></Card>
     <Card title="Change password"><Field label="Current password" value={currentPassword} onChangeText={setCurrent} secureTextEntry autoComplete="current-password" maxLength={200} /><Field label="New password · at least 10 characters" value={newPassword} onChangeText={setNew} secureTextEntry autoComplete="new-password" maxLength={200} /><Field label="Confirm new password" value={confirm} onChangeText={setConfirm} secureTextEntry autoComplete="new-password" maxLength={200} /><Button label="Change password" disabled={busy} onPress={() => { void action('password'); }} /></Card>
     {!!message && <Notice>{message}</Notice>}
-    <Card title="Session"><Text style={common.muted}>Sign out removes this client’s bearer credential; the server-side session expires at its original expiry. Native credentials use SecureStore. Browser credentials live in this tab’s sessionStorage and are readable by JavaScript, so use trusted origins only.</Text><Button label="Sign out on this device" disabled={busy} onPress={() => { void action('logout'); }} /></Card>
+    <Card title="Session"><Text style={common.muted}>Sign out removes this client’s bearer credential; the server-side session expires at its original expiry. {credentialStorageDescription}</Text><Button label="Sign out on this device" disabled={busy} onPress={() => { void action('logout'); }} /></Card>
   </>;
 }

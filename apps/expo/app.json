@@ -37,7 +37,15 @@
           "imageWidth": 76
         }
       ],
-      "expo-secure-store"
+      ["expo-secure-store", { "faceIDPermission": false }],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "cmakeVersion": "4.1.2"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
