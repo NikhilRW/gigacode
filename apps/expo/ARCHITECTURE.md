@@ -2,10 +2,15 @@
 
 ## Design
 
-The existing Expo theme remains the design source: `src/lib/palette.ts`, `src/theme.ts`, and
-`src/state/ThemeProvider.tsx`. Ink-navy surfaces, azure actions, cyan accents, Space Grotesk, rounded
-panels and the static Orbit artwork are retained. Light mode uses ice-blue surfaces, white chrome
-and navy text. Web and Android/iOS editors use `plainEditorPalettes` for neutral light/dark surfaces
+`apps/web/src/index.css` is the visual source of truth. `src/lib/palette.ts` maps its warm neutral
+light/dark, semantic and sidebar tokens to native colors; `src/theme.ts` shares Inter faces,
+JetBrains Mono and 10 px radii. `src/state/ThemeProvider.tsx` retains persisted mode selection.
+Static TTFs from the SIL-OFL-licensed Expo Google Fonts packages are loaded with `expo-font`.
+The DOM editor resolves its own bundled JetBrains Mono regular/italic with the web `expo-asset`
+pipeline and injects `@font-face` rules, with no
+native font module imported across the DOM boundary. Auth uses a restrained form and a neutral
+informational split on wide displays, without decorative artwork. Web and Android/iOS editors use
+`plainEditorPalettes` for matching warm neutral light/dark surfaces
 and completion menus, retain readable light/dark syntax colors without active-line decoration,
 and keep the line-number gutter close to the code. The workspace clips its editor and output surfaces
 inside a subtle rounded frame with matching neutral backgrounds and no glow.
@@ -14,6 +19,10 @@ inside a subtle rounded frame with matching neutral backgrounds and no glow.
 
 Expo Router routes in `src/app/` use React Native views, safe areas, keyboard avoidance, forms,
 navigation and themed reusable components. They adapt from phones to tablets/desktop and landscape.
+`AppShell` provides a fixed safe-area-aware header and a dismissible navigation modal below 900 px,
+or a persistent neutral sidebar above it. Links remain typed Expo Router routes and retain guest,
+session and administrator visibility. The shell does not own a content ScrollView: workspace and
+account screens each provide one main page scroll, avoiding a second scroll around the DOM editor.
 
 **Only `src/components/CodeEditor.tsx` has `'use dom'`.** CodeMirror and its language/view packages
 need a browser; they are not imported by the native screens as native UI. Expo replaces the DOM

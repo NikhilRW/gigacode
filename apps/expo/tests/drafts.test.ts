@@ -26,13 +26,23 @@ describe('device draft library', () => {
   });
   test('rejects blank, path-like, overlong and case-insensitive duplicate names', () => {
     const files = createLibrary().files;
-    for (const name of ['', '../secret', 'folder/file', 'folder\\file', 'a'.repeat(65), 'HELLO_UNIVERSE.py']) {
+    for (const name of [
+      '',
+      '../secret',
+      'folder/file',
+      'folder\\file',
+      'a'.repeat(65),
+      'HELLO_UNIVERSE.py',
+    ]) {
       expect(() => pythonFilename(name, files)).toThrow();
     }
   });
   test('serializes writes and snapshots each request at enqueue time', async () => {
     const writes: string[] = [];
-    const write = createWriteQueue(async value => { await Promise.resolve(); writes.push(value); });
+    const write = createWriteQueue(async (value) => {
+      await Promise.resolve();
+      writes.push(value);
+    });
     const library = createLibrary();
     const first = write(library);
     library.files[0].code = '# newest';
@@ -43,7 +53,9 @@ describe('device draft library', () => {
   });
   test('reports a failed write and permits a subsequent retry', async () => {
     let attempts = 0;
-    const write = createWriteQueue(async () => { if (++attempts === 1) throw new Error('storage denied'); });
+    const write = createWriteQueue(async () => {
+      if (++attempts === 1) throw new Error('storage denied');
+    });
     await expect(write(createLibrary())).rejects.toThrow('storage denied');
     await write(createLibrary());
     expect(attempts).toBe(2);

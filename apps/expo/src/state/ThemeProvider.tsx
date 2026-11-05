@@ -5,8 +5,11 @@ import { createCommon, palettes, type Colors, type ThemeMode } from '@/theme';
 import { decodeTheme, THEME_STORAGE_KEY } from '@/lib/palette';
 
 type ThemeContext = {
-  mode: ThemeMode; colors: Colors; common: ReturnType<typeof createCommon>;
-  toggle: () => void; persistenceError: string | null;
+  mode: ThemeMode;
+  colors: Colors;
+  common: ReturnType<typeof createCommon>;
+  toggle: () => void;
+  persistenceError: string | null;
 };
 const Context = createContext<ThemeContext | null>(null);
 
@@ -17,12 +20,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const writer = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => {
     let cancelled = false;
-    AsyncStorage.getItem(THEME_STORAGE_KEY).then(value => {
-      if (!cancelled) { setMode(decodeTheme(value)); setReady(true); }
-    }).catch(() => {
-      if (!cancelled) { setReady(true); setPersistenceError('Theme preference could not be opened. Changes apply to this session.'); }
-    });
-    return () => { cancelled = true; };
+    AsyncStorage.getItem(THEME_STORAGE_KEY)
+      .then((value) => {
+        if (!cancelled) {
+          setMode(decodeTheme(value));
+          setReady(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setReady(true);
+          setPersistenceError('Theme preference could not be opened. Changes apply to this session.');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
   const colors = palettes[mode];
   const common = useMemo(() => createCommon(colors), [colors]);
@@ -35,15 +48,28 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const toggle = () => {
     const next = mode === 'dark' ? 'light' : 'dark';
     setMode(next);
-    writer.current = writer.current.catch(() => {}).then(() => AsyncStorage.setItem(THEME_STORAGE_KEY, next)).then(() => setPersistenceError(null)).catch(() => {
-      setPersistenceError('Theme changed for this session. Device storage could not save your preference.');
-    });
+    writer.current = writer.current
+      .catch(() => {})
+      .then(() => AsyncStorage.setItem(THEME_STORAGE_KEY, next))
+      .then(() => setPersistenceError(null))
+      .catch(() => {
+        setPersistenceError('Theme changed for this session. Device storage could not save your preference.');
+      });
   };
   // A neutral shell keeps restored light mode from flashing a dark workspace.
   // No browser globals are read during server rendering or initial hydration.
-  return <Context.Provider value={{ mode, colors, common, toggle, persistenceError }}>
-    {ready ? children : <View accessibilityLabel="Opening your workspace" style={{ flex: 1, backgroundColor: palettes.dark.bg }} />}
-  </Context.Provider>;
+  return (
+    <Context.Provider value={{ mode, colors, common, toggle, persistenceError }}>
+      {ready ? (
+        children
+      ) : (
+        <View
+          accessibilityLabel="Opening your workspace"
+          style={{ flex: 1, backgroundColor: palettes.dark.bg }}
+        />
+      )}
+    </Context.Provider>
+  );
 }
 
 export function useTheme() {

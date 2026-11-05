@@ -5,7 +5,11 @@ import type { Credential } from './client';
 // Android keeps its existing Keystore-backed session. Metro selects this module
 // only on Android; the iOS/browser module never imports SecureStore.
 const key = 'gigacode.session.v1';
-const schema = z.object({ token: z.string().startsWith('ce_session_'), expiresAt: z.number().finite(), baseUrl: z.string() });
+const schema = z.object({
+  token: z.string().startsWith('ce_session_'),
+  expiresAt: z.number().finite(),
+  baseUrl: z.string(),
+});
 export const credentialStorageDescription = 'Android sessions use SecureStore.';
 
 export async function readCredential(): Promise<Credential | null> {

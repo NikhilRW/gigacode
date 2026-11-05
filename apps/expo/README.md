@@ -1,6 +1,7 @@
 # GigaCode · Android, iOS, and web
 
-The universal client uses the existing Expo ink-navy/azure dark theme and ice-blue light theme. It
+The universal client matches `apps/web` with warm neutral light/dark surfaces, Inter UI text and
+JetBrains Mono code. It
 connects to the API and execution worker in this repository; code executes on the server, not the phone.
 
 ## Start here
@@ -59,7 +60,15 @@ they are not automatically cloud-synced. Submitted source and results are availa
 On web and Android/iOS the editor uses neutral light/dark surfaces with readable syntax colors, no
 active-line decoration, and compact line-number spacing. The workspace has subtle rounded, clipped
 corners and matching editor/output backgrounds, without glow. Native file actions remain available
-without a language badge. The rest of the website keeps its existing theme.
+without a language badge. Shared controls use subtle borders, 10 px radii and 44–48 px touch targets.
+Phones have a fixed safe-area header and navigation drawer; tablets/desktop use a persistent sidebar
+from 900 px. Workspace content retains its own single page scroll, separate from navigation.
+
+Fonts are bundled static TTFs from `@expo-google-fonts/inter` (400/500/600/700) and
+`@expo-google-fonts/jetbrains-mono` (400). Both font families use the SIL Open Font License 1.1;
+the packages include `LICENSE_FONT` and upstream attribution. `expo-font` loads native/UI faces before
+rendering. The DOM editor independently bundles regular and italic JetBrains Mono through CSS
+`@font-face`, so offline WebViews do not depend on native font registration or a Google Fonts request.
 
 CodeMirror is **browser-only**. `src/components/CodeEditor.tsx` is explicitly an Expo **`'use dom'` component**:
 

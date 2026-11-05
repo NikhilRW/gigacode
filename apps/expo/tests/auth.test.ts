@@ -8,8 +8,20 @@ describe('account form validation', () => {
     expect(loginSchema.safeParse({ email: 'ada@example.com', password: 'legacy' }).success).toBe(true);
   });
   test('sign-up validates name and password length', () => {
-    expect(signupSchema.safeParse({ name: ' ', tenantName: 'Study', email: 'ada@example.com', password: 'short' }).success).toBe(false);
-    expect(signupSchema.parse({ name: '  Ada  ', tenantName: '  Study  ', email: 'ada@example.com', password: 'a-long-password' })).toMatchObject({ name: 'Ada', tenantName: 'Study' });
-    expect(signupSchema.safeParse({ name: 'Ada', email: 'ada@example.com', password: 'a-long-password' }).success).toBe(false);
+    expect(
+      signupSchema.safeParse({ name: ' ', tenantName: 'Study', email: 'ada@example.com', password: 'short' })
+        .success,
+    ).toBe(false);
+    expect(
+      signupSchema.parse({
+        name: '  Ada  ',
+        tenantName: '  Study  ',
+        email: 'ada@example.com',
+        password: 'a-long-password',
+      }),
+    ).toMatchObject({ name: 'Ada', tenantName: 'Study' });
+    expect(
+      signupSchema.safeParse({ name: 'Ada', email: 'ada@example.com', password: 'a-long-password' }).success,
+    ).toBe(false);
   });
 });

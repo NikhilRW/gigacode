@@ -15,7 +15,8 @@
     "@codemirror/language": "^6.13.1",
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.15",
-    "@expo-google-fonts/space-grotesk": "^0.4.1",
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/jetbrains-mono": "^0.4.1",
     "@expo/ui": "~57.0.21",
     "@expo/vector-icons": "^15.0.2",
     "@hookform/resolvers": "^6.0.0",
@@ -23,6 +24,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@uiw/react-codemirror": "^4.25.12",
     "expo": "~57.0.26",
+    "expo-asset": "~57.0.20",
     "expo-build-properties": "~57.0.22",
     "expo-constants": "~57.0.20",
     "expo-dev-client": "~57.0.20",
@@ -73,7 +75,9 @@
   "expo": {
     "autolinking": {
       "apple": {
-        "exclude": ["expo-secure-store"]
+        "exclude": [
+          "expo-secure-store"
+        ]
       }
     }
   },

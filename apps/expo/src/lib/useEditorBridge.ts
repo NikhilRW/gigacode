@@ -25,25 +25,34 @@ export function useEditorBridge(fileId: string, focusEditor: boolean) {
     };
   }, [fileId, focusEditor]);
 
-  const readDocument = useCallback(() => new Promise<Document>((resolve, reject) => {
-    const request = editor.current?.requestDocument;
-    if (typeof request !== 'function') {
-      reject(new Error('The editor is still opening. Try again in a moment.'));
-      return;
-    }
-    const id = String(++sequence.current);
-    const timer = setTimeout(() => {
-      pending.current.delete(id);
-      reject(new Error('The editor did not reply. Your last saved draft is retained; reopen the editor and retry.'));
-    }, 5000);
-    pending.current.set(id, { resolve, reject, timer });
-    try { request(id); }
-    catch (error) {
-      clearTimeout(timer);
-      pending.current.delete(id);
-      reject(error);
-    }
-  }), []);
+  const readDocument = useCallback(
+    () =>
+      new Promise<Document>((resolve, reject) => {
+        const request = editor.current?.requestDocument;
+        if (typeof request !== 'function') {
+          reject(new Error('The editor is still opening. Try again in a moment.'));
+          return;
+        }
+        const id = String(++sequence.current);
+        const timer = setTimeout(() => {
+          pending.current.delete(id);
+          reject(
+            new Error(
+              'The editor did not reply. Your last saved draft is retained; reopen the editor and retry.',
+            ),
+          );
+        }, 5000);
+        pending.current.set(id, { resolve, reject, timer });
+        try {
+          request(id);
+        } catch (error) {
+          clearTimeout(timer);
+          pending.current.delete(id);
+          reject(error);
+        }
+      }),
+    [],
+  );
 
   const onDocument = useCallback(async (requestId: string, id: string, code: string) => {
     const request = pending.current.get(requestId);
