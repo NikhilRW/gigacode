@@ -1,4 +1,6 @@
 import { statuses, terminal, type ExecutionDetail, type Me, type Source, type Usage } from '../types';
+import { simulationTarget } from './target';
+export { simulationOrigin } from './target';
 
 export const SIMULATION_LIMITS = {
   minRate: 0.1,
@@ -21,20 +23,8 @@ export const probeSource = (): Source => ({
   limits: { timeoutMs: 1000, memoryMb: 64, cpuMsPerSec: 100, pids: 16 },
 });
 
-/** Deliberately stricter than the ordinary client: canonical loopback origins only. */
-export function simulationOrigin(input: string): string | null {
-  if (!/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::[1-9][0-9]{0,4})?\/?$/.test(input)) return null;
-  try {
-    const url = new URL(input);
-    if (!['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) return null;
-    return url.origin;
-  } catch {
-    return null;
-  }
-}
-
 export interface Plan { rate: number; durationSeconds: number; maxJobs: number }
-export interface Attestation { authorizedEnvironment: boolean; dedicatedTenant: boolean }
+export interface Attestation { authorizedEnvironment: boolean; dedicatedTenant: boolean; targetOriginConfirmation?: string }
 export interface SimulationApi {
   readonly origin: string;
   me(signal: AbortSignal): Promise<Me>;
@@ -94,8 +84,11 @@ export interface SimulationSnapshot {
   reason: string;
   elapsedMs: number;
   cooldownMs: number;
+  cooldownUntil: number;
   probes: readonly Probe[];
   usage: Usage | null;
+  usageObservedAt: number | null;
+  usageError: string | null;
   rateLimited: number;
   issues: readonly string[];
 }
@@ -126,10 +119,10 @@ export function simulationMetrics(snapshot: SimulationSnapshot) {
   };
 }
 
-function httpStatus(error: unknown): number {
+export function httpStatus(error: unknown): number {
   return error && typeof error === 'object' && 'status' in error && typeof error.status === 'number' ? error.status : 0;
 }
-function retryDelay(error: unknown, now: number): number {
+export function retryDelay(error: unknown, now: number): number {
   if (error && typeof error === 'object' && 'retryAfter' in error) {
     const value = error.retryAfter;
     if (typeof value === 'number' && Number.isFinite(value) && value >= 0) return Math.max(1000, value * 1000);
@@ -146,7 +139,7 @@ function retryDelay(error: unknown, now: number): number {
 
 /** One explicitly started experiment per instance; POSTs are never retried or aborted. */
 export class SimulationController {
-  private snapshot: SimulationSnapshot = { phase: 'idle', plan: null, reason: 'Ready. No jobs submitted.', elapsedMs: 0, cooldownMs: 0, probes: [], usage: null, rateLimited: 0, issues: [] };
+  private snapshot: SimulationSnapshot = { phase: 'idle', plan: null, reason: 'Ready. No jobs submitted.', elapsedMs: 0, cooldownMs: 0, cooldownUntil: 0, probes: [], usage: null, usageObservedAt: null, usageError: null, rateLimited: 0, issues: [] };
   private listeners = new Set<() => void>();
   private rows: Probe[] = [];
   private disposed = false;
@@ -167,13 +160,20 @@ export class SimulationController {
   private concurrency = 1;
   private identity: Me | null = null;
   private cleanupTimers = new Set<number>();
+  private readonly capturedOrigin: string;
 
   constructor(
     private api: SimulationApi,
-    private expected: { tenantId: string; userId: string },
+    private expected: { tenantId: string; userId: string; browserOrigin?: string | null },
     private clock: Clock = systemClock,
     private reportCleanup: (message: string) => void = (message) => console.warn('Simulation cleanup:', message),
-  ) {}
+  ) { this.capturedOrigin = api.origin; }
+
+  /** Shared with the passive observer; a read-side 429 also gates preflight and cleanup. */
+  deferRequests(until: number): void {
+    this.blockedUntil = Math.max(this.blockedUntil, until);
+    this.publish({ cooldownUntil: this.blockedUntil, cooldownMs: Math.max(0, this.blockedUntil - this.clock.now()) });
+  }
 
   getSnapshot = (): SimulationSnapshot => this.snapshot;
   subscribe = (listener: () => void) => {
@@ -201,8 +201,17 @@ export class SimulationController {
 
   async start(plan: Plan, attestation: Attestation): Promise<void> {
     if (this.disposed || this.snapshot.phase !== 'idle') return;
-    if (!simulationOrigin(this.api.origin)) {
-      this.publish({ reason: 'Production and remote origins are blocked. Use a canonical loopback API origin.' });
+    const target = simulationTarget(this.capturedOrigin, this.expected.browserOrigin);
+    if (target.kind === 'blocked' || this.api.origin !== this.capturedOrigin) {
+      this.publish({ reason: target.kind === 'blocked' ? target.label : 'API origin changed. Reopen the screen and confirm the new target.' });
+      return;
+    }
+    if (this.clock.now() < this.blockedUntil) {
+      this.publish({ reason: 'Shared rate-limit cooldown is active. No preflight or submissions.' });
+      return;
+    }
+    if (target.kind === 'codespaces' && attestation.targetOriginConfirmation !== target.origin) {
+      this.publish({ reason: 'Type the exact current API origin before starting a forwarded Codespaces target.' });
       return;
     }
     if (!attestation.authorizedEnvironment || !attestation.dedicatedTenant) {
@@ -217,8 +226,10 @@ export class SimulationController {
       if (this.disposed || version !== this.epoch || this.getSnapshot().phase !== 'validating') return;
       if (me.tenant.id !== this.expected.tenantId || me.user.id !== this.expected.userId)
         throw new Error('identity');
+      if (this.api.origin !== this.capturedOrigin || this.clock.now() < this.blockedUntil) { this.stop('Target changed or shared cooldown began during preflight. Nothing submitted.'); return; }
       const usage = await this.api.usage(this.monitor.signal);
       if (this.disposed || version !== this.epoch || this.getSnapshot().phase !== 'validating') return;
+      if (this.api.origin !== this.capturedOrigin || this.clock.now() < this.blockedUntil) { this.stop('Target changed or shared cooldown began during preflight. Nothing submitted.'); return; }
       const caps = { ...me.limits };
       for (const field of Object.keys(caps) as (keyof Me['limits'])[])
         caps[field] = Math.min(caps[field], usage.limits[field]);
@@ -236,7 +247,7 @@ export class SimulationController {
       this.nextSubmission = this.startedAt;
       this.nextPoll = this.startedAt + SIMULATION_LIMITS.pollMs;
       this.nextUsage = this.startedAt + 10_000;
-      this.publish({ phase: 'running', plan: selected, usage, reason: 'Real test workload is running.' });
+      this.publish({ phase: 'running', plan: selected, usage, usageObservedAt: this.clock.now(), usageError: null, reason: 'Real test workload is running.' });
       this.tick();
     } catch (error) {
       if (this.disposed || version !== this.epoch || this.getSnapshot().phase !== 'validating') return;
@@ -289,7 +300,7 @@ export class SimulationController {
   }
 
   private rateLimit(error: unknown) {
-    this.blockedUntil = Math.max(this.blockedUntil, this.clock.now() + retryDelay(error, this.clock.now()));
+    this.deferRequests(this.clock.now() + retryDelay(error, this.clock.now()));
     this.publish({ rateLimited: this.snapshot.rateLimited + 1, cooldownMs: this.blockedUntil - this.clock.now() });
     this.issue('HTTP 429: production stopped. Reads and cancellation pause for Retry-After, or 60 s when unavailable. No create retry.');
     this.stop('Rate limited. No further jobs will be submitted.');
@@ -298,11 +309,12 @@ export class SimulationController {
   private tick = () => {
     if (this.disposed || !['running', 'draining'].includes(this.snapshot.phase)) return;
     const now = this.clock.now();
+    if (this.api.origin !== this.capturedOrigin) this.stop('Target changed. No further submissions; reconcile owned IDs.');
     this.publish({ elapsedMs: Math.max(0, now - this.startedAt), cooldownMs: Math.max(0, this.blockedUntil - now) });
     const plan = this.snapshot.plan;
     if (this.snapshot.phase === 'running' && plan && (now >= this.deadline || this.rows.length >= plan.maxJobs))
       this.stop(now >= this.deadline ? 'Duration reached. Draining and cancelling remaining owned jobs.' : 'Total attempt cap reached. Draining remaining owned jobs.');
-    if (this.snapshot.phase === 'running' && plan && now >= this.nextSubmission && !this.creating &&
+    if (this.snapshot.phase === 'running' && plan && now >= this.blockedUntil && now >= this.nextSubmission && !this.creating &&
         this.rows.filter(outstanding).length < this.concurrency) {
       this.nextSubmission = now + 1000 / plan.rate; // No catch-up bursts after a delayed timer or backpressure.
       void this.submit();
@@ -396,7 +408,7 @@ export class SimulationController {
         const usage = await this.api.usage(this.monitor.signal);
         if (!isCurrent()) return;
         this.nextUsage = this.clock.now() + 10_000;
-        this.publish({ usage });
+        this.publish({ usage, usageObservedAt: this.clock.now(), usageError: null });
         if (this.identity && this.snapshot.plan) {
           const caps = { ...this.identity.limits };
           for (const field of Object.keys(caps) as (keyof Me['limits'])[])
@@ -410,6 +422,7 @@ export class SimulationController {
     } catch (error) {
       if (!isCurrent()) return;
       this.pollFailures++;
+      this.publish({ usageError: 'Active monitoring failed; tenant usage is last known data.' });
       for (const row of this.rows.filter(outstanding)) row.monitorError = 'Monitoring unavailable; last known state only.';
       if (httpStatus(error) === 429) this.rateLimit(error);
       else {
