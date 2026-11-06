@@ -115,9 +115,10 @@ export function tenantTelemetry(activity: ActivitySnapshot, experiment: Simulati
   const fromExperiment = experiment.usageObservedAt !== null && (activity.usageAt === null || experiment.usageObservedAt > activity.usageAt);
   const usage = fromExperiment ? experiment.usage : activity.usage;
   const at = fromExperiment ? experiment.usageObservedAt : activity.usageAt;
-  const error = fromExperiment ? experiment.usageError : activity.error;
-  const cooldown = activity.now < experiment.cooldownUntil;
   const active = ['validating', 'running', 'draining'].includes(experiment.phase);
+  // A finished experiment's cached usage must not mask a later passive read/auth failure.
+  const error = fromExperiment ? experiment.usageError || (!active ? activity.error : null) : activity.error;
+  const cooldown = activity.now < experiment.cooldownUntil;
   const fresh = !!usage && validUsage(usage) && at !== null && activity.now - at <= 25_000 && !error && !cooldown && (activity.mode !== 'paused' || active);
   return { usage, at, error, fresh, fromExperiment, cooldown };
 }
