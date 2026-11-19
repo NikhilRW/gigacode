@@ -91,7 +91,7 @@ export default function Connection() {
           onPress={() => {
             setBusy(true);
             setMessage('');
-            void auth
+            auth
               .setServer(url)
               .then(() => setMessage('Server saved. Use Check connection, then sign in.'))
               .catch((err) => setMessage(describeError(err)))

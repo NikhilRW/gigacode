@@ -16,6 +16,8 @@ import { readCredential, writeCredential } from '@/lib/credentialStore';
 import type { Me, NativeSession } from '@/lib/types';
 
 const urlKey = 'gigacode.api-url.v1';
+const defaultApiUrl = 'https://gcode.singularitydev.xyz';
+
 const meSchema = z.object({
   user: z.object({
     id: z.string(),
@@ -91,8 +93,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void (async () => {
       try {
         const storedUrl = await AsyncStorage.getItem(urlKey);
-        const url = storedUrl || process.env.EXPO_PUBLIC_API_URL || '';
-        const base = url ? normalizeApiUrl(url) : '';
+        const url = storedUrl || process.env.EXPO_PUBLIC_API_URL || defaultApiUrl;
+        const base = normalizeApiUrl(url);
         const saved = await readCredential();
         if (disposed) return;
         setBaseUrl(base);
